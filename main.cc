@@ -68,16 +68,13 @@ int main(int argc, char** argv)
 
   auto runManager = new G4RunManager();
 
-  // AnaManagerの初期化
   AnaManager::GetInstance();
 
-  // 乱数シードの設定
   G4Random::setTheSeed(myseed);
 
-  // Detector 初期化
   runManager->SetUserInitialization(new DetectorConstruction());
 
-  // 物理リスト設定
+  // Physics List setting
   // G4VModularPhysicsList* physicsList = new FTFP_BERT;
   G4VModularPhysicsList* physicsList = new QGSP_BERT;
   physicsList->ReplacePhysics(new G4EmStandardPhysics_option4());
@@ -89,14 +86,14 @@ int main(int argc, char** argv)
     
   auto optical_params = G4OpticalParameters::Instance();
 
-  // G4Cerenkovの設定
+  // G4Cerenkov setting
   optical_params->SetCerenkovMaxPhotonsPerStep(100);
   optical_params->SetCerenkovStackPhotons(true);
   optical_params->SetCerenkovTrackSecondariesFirst(true);
   optical_params->SetCerenkovVerboseLevel(1);
   optical_params->SetBoundaryVerboseLevel(1);
   
-  // // // G4Scintillationの設定
+  // // // G4Scintillation setting
   // // optical_params->SetScintByParticleType(false);
   // // optical_params->SetScintTrackInfo(false);
   // // optical_params->SetScintTrackSecondariesFirst(true);
@@ -104,7 +101,7 @@ int main(int argc, char** argv)
   // // optical_params->SetScintStackPhotons(true);
   // // optical_params->SetScintVerboseLevel(1);
 
-  // G4OpAbsorptionの設定
+  // G4OpAbsorption setting
   optical_params->SetAbsorptionVerboseLevel(1);
   
   

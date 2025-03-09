@@ -23,7 +23,7 @@ namespace
 PrimaryGeneratorAction::PrimaryGeneratorAction()
   : G4VUserPrimaryGeneratorAction()
 {
-  fParticleGun = new G4ParticleGun(1); // Initialize particle gun
+  fParticleGun = new G4ParticleGun(1);
 }
 
 PrimaryGeneratorAction::~PrimaryGeneratorAction()
@@ -45,24 +45,44 @@ void PrimaryGeneratorAction::GenerateKaon(G4Event* anEvent)
 
   
   // -----------------------
-  // 🎯 ビームエネルギーを正規分布で振る
+  // Momentum
   // -----------------------
-  G4double E0 = 0.735 * GeV;
-  G4double sigmaE = E0 * 0.02 / 2.355;
-  G4double energy = G4RandGauss::shoot(E0, sigmaE);
-  gAnaMan.SetBeamEnergy(energy);
+  G4double p0 = 0.735 * GeV;
+  G4double sigma_p = p0 * 0.02 / 2.355;
+  G4double momentum = G4RandGauss::shoot(p0, sigma_p);
 
-  // 運動量を計算 (p = sqrt(E^2 - m^2))
   G4double mass = particle->GetPDGMass();
-  G4double momentum = std::sqrt(energy * energy - mass * mass);
+  G4double energy = std::sqrt(mass*mass + momentum*momentum);
+  gAnaMan.SetBeamEnergy(energy);
+  fParticleGun->SetParticleEnergy(energy);
 
   // -----------------------
-  // 📍 初期位置を正規分布で振る
+  // Momentum direction
+  // -----------------------
+  // G4double theta_max = 0.1 * deg;
+  // G4double theta = G4UniformRand() * theta_max;
+  // G4double phi = G4UniformRand() * 360.0 * deg;
+  G4double theta = 0.;
+  G4double phi = 0.;
+  
+  G4double px = momentum * std::sin(theta) * std::cos(phi);
+  G4double py = momentum * std::sin(theta) * std::sin(phi);
+  G4double pz = momentum * std::cos(theta);
+
+  G4ThreeVector direction(px, py, pz);
+  gAnaMan.SetBeamMomentum(direction);
+  direction = direction.unit();  // normalize
+
+  fParticleGun->SetParticleMomentum(momentum);
+  fParticleGun->SetParticleMomentumDirection(direction);
+
+  // -----------------------
+  // Position
   // -----------------------
   G4double x0 = 0.0 * mm, sigmaX = 50.0 * mm;
   G4double y0 = 0.0 * mm, sigmaY = 50.0 * mm;
-  G4double z0 = -100.0 * mm;  // ビームの初期位置 (zは固定)
-
+  G4double z0 = -100.0 * mm;
+  
   // G4double x = G4RandGauss::shoot(x0, sigmaX);
   // G4double y = G4RandGauss::shoot(y0, sigmaY);
   G4double x = 0.0 * mm;
@@ -74,37 +94,17 @@ void PrimaryGeneratorAction::GenerateKaon(G4Event* anEvent)
   gAnaMan.SetBeamPosition(position);
 
   // -----------------------
-  // 🎯 ビームの角度をランダムに振る
+  // Debug
   // -----------------------
-  // G4double theta_max = 0.1 * deg;  // 角度範囲（最大5度）
-  // G4double theta = G4UniformRand() * theta_max;  // 0〜5度の一様乱数
-  // G4double phi = G4UniformRand() * 360.0 * deg;  // 0〜360度の一様乱数
-  G4double theta = 0.;
-  G4double phi = 0.;
-  
-  G4double px = momentum * std::sin(theta) * std::cos(phi);
-  G4double py = momentum * std::sin(theta) * std::sin(phi);
-  G4double pz = momentum * std::cos(theta);
-
-  G4ThreeVector direction(px, py, pz);
-  gAnaMan.SetBeamMomentum(direction);
-  direction = direction.unit();  // 正規化
-
-  fParticleGun->SetParticleMomentum(momentum);
-  fParticleGun->SetParticleMomentumDirection(direction);
-  
-  // -----------------------
-  // 🛠 デバッグ用出力
-  // -----------------------
-  G4cout << "Particle: " << particle->GetParticleName()
-	 << " | Energy: " << energy / GeV << " GeV"
-	 << " | Momentum: " << momentum / GeV << " GeV/c"
-	 << " | Position: (" << x / mm << ", " << y / mm << ", " << z / mm << ") mm"
-	 << " | Direction: (" << direction.x() << ", " << direction.y() << ", " << direction.z() << ")"
-	 << G4endl;
+  // G4cout << "Particle: " << particle->GetParticleName()
+  // 	 << " | Energy: " << energy / GeV << " GeV"
+  // 	 << " | Momentum: " << momentum / GeV << " GeV/c"
+  // 	 << " | Position: (" << x / mm << ", " << y / mm << ", " << z / mm << ") mm"
+  // 	 << " | Direction: (" << direction.x() << ", " << direction.y() << ", " << direction.z() << ")"
+  // 	 << G4endl;
 
   // -----------------------
-  // 🎯 粒子を生成
+  // Gus
   // -----------------------
   fParticleGun->GeneratePrimaryVertex(anEvent);
 }
