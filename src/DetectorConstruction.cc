@@ -624,7 +624,9 @@ DetectorConstruction::ConstructKVC()
   G4int n_entries;
   
   // G4ThreeVector kvc_size(104.0*mm, 120.0*mm, 10.0*mm);
-  G4ThreeVector kvc_size(104.0*mm, 120.0*mm, 20.0*mm);
+  G4ThreeVector kvc_size(26.0*mm, 120.0*mm, 10.0*mm);
+  // G4ThreeVector kvc_size(104.0*mm, 120.0*mm, 20.0*mm);
+  // G4ThreeVector kvc_size(26.0*mm, 120.0*mm, 20.0*mm);
 
   G4ThreeVector origin_pos(0.0*mm, 0.0*mm, 0.0*mm);
 
@@ -684,53 +686,53 @@ DetectorConstruction::ConstructKVC()
   
   auto rot = new G4RotationMatrix;
   rot->rotateX(90.0*deg);
-  G4int n_mppc = 16;
+  G4int n_mppc = 4;
   G4double offset = 0.0 * mm;
 
+  for(G4int i=0; i<n_mppc; ++i){
+    G4ThreeVector pos_up(
+		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
+		      kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,
+		      0.0*mm);
+    G4ThreeVector pos_low(
+		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
+		      -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,
+		      0.0*mm);
+    new G4PVPlacement(rot, pos_up, mppc_lv, "MppcPV",
+                      mother_lv, false, i, m_check_overlaps);
+    new G4PVPlacement(rot, pos_low, mppc_lv, "MppcPV",
+                      mother_lv, false, i+n_mppc, m_check_overlaps);
+  }
+
   // for(G4int i=0; i<n_mppc; ++i){
-  //   G4ThreeVector pos_up(
+  //   G4ThreeVector pos_up1(
   // 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
   // 		      kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,
-  // 		      0.0*mm);
-  //   G4ThreeVector pos_low(
+  // 		      5.0*mm);
+  //   G4ThreeVector pos_up2(
+  // 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
+  // 		      kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,
+  // 		      -5.0*mm);
+    
+  //   G4ThreeVector pos_low1(
   // 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
   // 		      -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,
-  // 		      0.0*mm);
-  //   new G4PVPlacement(rot, pos_up, mppc_lv, "MppcPV",
+  // 		      5.0*mm);
+  //   G4ThreeVector pos_low2(
+  // 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
+  // 		      -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,
+  // 		      -5.0*mm);
+    
+  //   new G4PVPlacement(rot, pos_up1, mppc_lv, "MppcPV",
   //                     mother_lv, false, i, m_check_overlaps);
-  //   new G4PVPlacement(rot, pos_low, mppc_lv, "MppcPV",
+  //   new G4PVPlacement(rot, pos_up2, mppc_lv, "MppcPV",
   //                     mother_lv, false, i+n_mppc, m_check_overlaps);
+    
+  //   new G4PVPlacement(rot, pos_low1, mppc_lv, "MppcPV",
+  //                     mother_lv, false, i+2*n_mppc, m_check_overlaps);
+  //   new G4PVPlacement(rot, pos_low2, mppc_lv, "MppcPV",
+  //                     mother_lv, false, i+3*n_mppc, m_check_overlaps);
   // }
-
-  for(G4int i=0; i<n_mppc; ++i){
-    G4ThreeVector pos_up1(
-		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
-		      kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,
-		      5.0*mm);
-    G4ThreeVector pos_up2(
-		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
-		      kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,
-		      -5.0*mm);
-    
-    G4ThreeVector pos_low1(
-		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
-		      -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,
-		      5.0*mm);
-    G4ThreeVector pos_low2(
-		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
-		      -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,
-		      -5.0*mm);
-    
-    new G4PVPlacement(rot, pos_up1, mppc_lv, "MppcPV",
-                      mother_lv, false, i, m_check_overlaps);
-    new G4PVPlacement(rot, pos_up2, mppc_lv, "MppcPV",
-                      mother_lv, false, i+n_mppc, m_check_overlaps);
-    
-    new G4PVPlacement(rot, pos_low1, mppc_lv, "MppcPV",
-                      mother_lv, false, i+2*n_mppc, m_check_overlaps);
-    new G4PVPlacement(rot, pos_low2, mppc_lv, "MppcPV",
-                      mother_lv, false, i+3*n_mppc, m_check_overlaps);
-  }
 
   mppc_lv->SetVisAttributes(G4Colour::Blue());
 

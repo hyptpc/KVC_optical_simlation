@@ -2,7 +2,8 @@
 #include "ActionInitialization.hh"
 #include "AnaManager.hh"
 #include "RunAction.hh"
-
+#include "ConfManager.hh"
+    
 #include "FTFP_BERT.hh"
 #include "QGSP_BERT.hh"
 #include "G4EmStandardPhysics_option4.hh"
@@ -15,16 +16,18 @@
 #include "G4Cerenkov.hh"
 #include "G4DecayPhysics.hh"
 
+#include <random>
+
 namespace
 {
   void PrintUsage()
   {
     G4cerr << " Usage: " << G4endl;
 #ifdef GEANT4_USE_GDML
-    G4cerr << " MPPCSim [-g gdmlfile] [-m macro ] [-u UIsession] [-r seed] "
+    G4cerr << " MPPCSim <conf file> [-g gdmlfile] [-m macro ] [-u UIsession] "
            << G4endl;
 #else
-    G4cerr << " MPPCSim  [-m macro ] [-u UIsession] [-r seed] "
+    G4cerr << " MPPCSim <conf file> [-m macro ] [-u UIsession] "
            << G4endl;
 #endif
   }
@@ -32,18 +35,19 @@ namespace
 
 int main(int argc, char** argv)
 {
-  if (argc > 7)
+  if (argc < 2 || argc > 6)
   {
     PrintUsage();
     return 1;
   }
-
+  ConfManager& config = ConfManager::Instance();
+  config.LoadConfigFile(argv[1]); 
+  
   G4String gdmlfile;
   G4String macro;
   G4String session;
-  G4long myseed = 345354;
 
-  for (G4int i = 1; i < argc; i = i + 2)
+  for (G4int i = 2; i < argc; i = i + 3)
   {
     if (G4String(argv[i]) == "-g")
       gdmlfile = argv[i + 1];
@@ -51,8 +55,6 @@ int main(int argc, char** argv)
       macro = argv[i + 1];
     else if (G4String(argv[i]) == "-u")
       session = argv[i + 1];
-    else if (G4String(argv[i]) == "-r")
-      myseed = atoi(argv[i + 1]);
     else
     {
       PrintUsage();
@@ -70,7 +72,8 @@ int main(int argc, char** argv)
 
   AnaManager::GetInstance();
 
-  G4Random::setTheSeed(myseed);
+  std::random_device rd;
+  G4Random::setTheSeed(rd());
 
   runManager->SetUserInitialization(new DetectorConstruction());
 
