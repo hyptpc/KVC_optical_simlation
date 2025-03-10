@@ -20,7 +20,7 @@ void EventAction::EndOfEventAction(const G4Event* anEvent) {
   G4int eventID = anEvent->GetEventID();
   gAnaMan.EndOfEventAction(anEvent);
 
-  // if (eventID % 100 == 0) {
+  if (eventID % 100 == 0) {
     G4cout << "   Event number = " << eventID << G4endl;
-  // }
+  }
 }

@@ -686,6 +686,7 @@ DetectorConstruction::ConstructKVC()
   rot->rotateX(90.0*deg);
   G4int n_mppc = 16;
   G4double offset = 0.0 * mm;
+
   // for(G4int i=0; i<n_mppc; ++i){
   //   G4ThreeVector pos_up(
   // 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
@@ -730,6 +731,7 @@ DetectorConstruction::ConstructKVC()
     new G4PVPlacement(rot, pos_low2, mppc_lv, "MppcPV",
                       mother_lv, false, i+3*n_mppc, m_check_overlaps);
   }
+
   mppc_lv->SetVisAttributes(G4Colour::Blue());
 
   // -- MPPC Surface -----

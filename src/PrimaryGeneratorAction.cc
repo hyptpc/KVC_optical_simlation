@@ -11,6 +11,8 @@
 #include "G4LorentzVector.hh"
 #include "Randomize.hh"
 
+#include "ConfManager.hh"
+
 namespace
 {
   using CLHEP::mm;
@@ -33,13 +35,13 @@ PrimaryGeneratorAction::~PrimaryGeneratorAction()
 
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 {
-  GenerateKaon(anEvent);
+  GenerateBeam(anEvent);
 }
 
-void PrimaryGeneratorAction::GenerateKaon(G4Event* anEvent)
+void PrimaryGeneratorAction::GenerateBeam(G4Event* anEvent)
 {
-  static const G4String particle_name = "kaon-";
-  // static const G4String particle_name = "pi-";
+  ConfManager& conf = ConfManager::Instance();
+  static const G4String particle_name = conf.Get("particle");
   static const auto particle = particleTable->FindParticle(particle_name);
   fParticleGun->SetParticleDefinition(particle);
 
@@ -47,7 +49,7 @@ void PrimaryGeneratorAction::GenerateKaon(G4Event* anEvent)
   // -----------------------
   // Momentum
   // -----------------------
-  G4double p0 = 0.735 * GeV;
+  G4double p0 = conf.GetDouble("momentum") * GeV;
   G4double sigma_p = p0 * 0.02 / 2.355;
   G4double momentum = G4RandGauss::shoot(p0, sigma_p);
 
@@ -73,14 +75,14 @@ void PrimaryGeneratorAction::GenerateKaon(G4Event* anEvent)
   gAnaMan.SetBeamMomentum(direction);
   direction = direction.unit();  // normalize
 
-  fParticleGun->SetParticleMomentum(momentum);
+  // fParticleGun->SetParticleMomentum(momentum);
   fParticleGun->SetParticleMomentumDirection(direction);
 
   // -----------------------
   // Position
   // -----------------------
-  G4double x0 = 0.0 * mm, sigmaX = 50.0 * mm;
-  G4double y0 = 0.0 * mm, sigmaY = 50.0 * mm;
+  G4double x0 = 0.0 * mm, sigmaX = 1.0 * mm;
+  G4double y0 = 0.0 * mm, sigmaY = 1.0 * mm;
   G4double z0 = -100.0 * mm;
   
   // G4double x = G4RandGauss::shoot(x0, sigmaX);
@@ -96,10 +98,10 @@ void PrimaryGeneratorAction::GenerateKaon(G4Event* anEvent)
   // -----------------------
   // Debug
   // -----------------------
-  // G4cout << "Particle: " << particle->GetParticleName()
-  // 	 << " | Energy: " << energy / GeV << " GeV"
-  // 	 << " | Momentum: " << momentum / GeV << " GeV/c"
-  // 	 << " | Position: (" << x / mm << ", " << y / mm << ", " << z / mm << ") mm"
+  // G4cout << "Particle: " << particle->GetParticleName() << G4endl
+  // 	 << " | Energy: " << energy / GeV << " GeV" << G4endl
+  // 	 << " | Momentum: " << momentum / GeV << " GeV/c" << G4endl
+  // 	 << " | Position: (" << x / mm << ", " << y / mm << ", " << z / mm << ") mm"  << G4endl
   // 	 << " | Direction: (" << direction.x() << ", " << direction.y() << ", " << direction.z() << ")"
   // 	 << G4endl;
 

@@ -15,8 +15,7 @@ public:
 
 private:
   G4ParticleGun* fParticleGun; // Particle gun
-  void GenerateKaon(G4Event* anEvent);
-
+  void GenerateBeam(G4Event* anEvent);
 };
 
 #endif

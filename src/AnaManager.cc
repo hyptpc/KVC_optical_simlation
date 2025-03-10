@@ -1,4 +1,5 @@
 #include "AnaManager.hh"
+#include "ConfManager.hh"
 #include "G4Run.hh"
 #include "G4Event.hh"
 #include "G4SDManager.hh"
@@ -50,7 +51,8 @@ AnaManager::~AnaManager()
 //_____________________________________________________________________________
 void AnaManager::BeginOfRunAction(const G4Run*)
 {
-  m_file = new TFile("test.root", "RECREATE");
+  ConfManager& conf = ConfManager::Instance();
+  m_file = new TFile(conf.Get("root_path").c_str(), "RECREATE");
   m_tree->Reset();
 
   m_tree->Branch("evnum", &m_evnum, "evnum/I");
