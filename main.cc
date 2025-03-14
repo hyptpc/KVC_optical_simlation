@@ -25,7 +25,7 @@ namespace
   void PrintUsage()
   {
     G4cerr << " Usage: " << G4endl
-	   << " MPPCSim <conf file> <output rootfile name> [macro]"
+	   << " KVCOpticalSim <conf file> <output rootfile name> [macro]"
            << G4endl;
   }
 }  // namespace
