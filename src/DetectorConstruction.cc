@@ -19,6 +19,13 @@
 #include "G4Colour.hh"
 #include "CLHEP/Units/SystemOfUnits.h"
 
+#include "ConfManager.hh"
+
+namespace
+{
+  auto& gConfMan = ConfManager::GetInstance();
+}
+
 //_____________________________________________________________________________
 DetectorConstruction::DetectorConstruction()
   : G4VUserDetectorConstruction(), m_check_overlaps(true)
@@ -559,7 +566,7 @@ DetectorConstruction::AddOpticalProperties()
 
   photon_energy     = { 1.3 * eV, 7.0 * eV};
   refractive_index  = { 1.6, 1.6 };
-  absorption_length = { 1.0e-9 * cm, 1.0e-9 * cm };
+  absorption_length = { 1.0e-11 * m, 1.0e-11 * m };
   n_entries = photon_energy.size();
   
   blacksheet_prop->AddProperty("RINDEX", &photon_energy[0], &refractive_index[0], n_entries);
@@ -593,7 +600,7 @@ DetectorConstruction::AddOpticalProperties()
   n_entries = photon_energy.size();
   
   mppc_prop->AddProperty("RINDEX", &photon_energy[0], &refractive_index[0], n_entries);
-  mppc_prop->AddProperty("ABSLENGTH", &photon_energy[0], &absorption_length[0], n_entries);
+  // mppc_prop->AddProperty("ABSLENGTH", &photon_energy[0], &absorption_length[0], n_entries);
   m_material_map["MPPC"]->SetMaterialPropertiesTable(mppc_prop);
 
   
@@ -622,11 +629,13 @@ DetectorConstruction::ConstructKVC()
   using CLHEP::eV;
   std::vector<G4double> photon_energy;  
   G4int n_entries;
-  
-  // G4ThreeVector kvc_size(104.0*mm, 120.0*mm, 10.0*mm);
-  G4ThreeVector kvc_size(26.0*mm, 120.0*mm, 10.0*mm);
-  // G4ThreeVector kvc_size(104.0*mm, 120.0*mm, 20.0*mm);
-  // G4ThreeVector kvc_size(26.0*mm, 120.0*mm, 20.0*mm);
+
+  G4double quartz_thickness = gConfMan.GetDouble("quartz_thickness") * mm;
+  G4int do_segmentize = gConfMan.GetInt("do_segmentize");
+
+  G4ThreeVector kvc_size = (do_segmentize == 1)
+    ? G4ThreeVector(26.0 * mm, 120.0 * mm, quartz_thickness)
+    : G4ThreeVector(104.0 * mm, 120.0 * mm, quartz_thickness);
 
   G4ThreeVector origin_pos(0.0*mm, 0.0*mm, 0.0*mm);
 
@@ -634,9 +643,9 @@ DetectorConstruction::ConstructKVC()
   // | Mother Volume (Air) |
   // +---------------------+
   auto mother_solid = new G4Box("KvcMotherSolid",
-                                kvc_size.x()/2.0 + 20.0*mm,
-                                kvc_size.y()/2.0 + 20.0*mm,
-                                kvc_size.z()/2.0 + 20.0*mm);
+                                kvc_size.x()/2.0 + 50.0*mm,
+                                kvc_size.y()/2.0 + 50.0*mm,
+                                kvc_size.z()/2.0 + 50.0*mm);
   auto mother_lv = new G4LogicalVolume(mother_solid,
                                        m_material_map["Air"],
                                        "KvcMotherLV");
@@ -686,62 +695,66 @@ DetectorConstruction::ConstructKVC()
   
   auto rot = new G4RotationMatrix;
   rot->rotateX(90.0*deg);
-  G4int n_mppc = 4;
+  G4int n_mppc = (do_segmentize == 1)
+    ? 4
+    : 16;
+
   G4double offset = 0.0 * mm;
 
-  for(G4int i=0; i<n_mppc; ++i){
-    G4ThreeVector pos_up(
+  if (6.0*mm < quartz_thickness && quartz_thickness < 12.0*mm) {
+    for(G4int i=0; i<n_mppc; ++i){
+      G4ThreeVector pos_up(
 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
 		      kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,
 		      0.0*mm);
-    G4ThreeVector pos_low(
+      G4ThreeVector pos_low(
 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
 		      -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,
 		      0.0*mm);
-    new G4PVPlacement(rot, pos_up, mppc_lv, "MppcPV",
-                      mother_lv, false, i, m_check_overlaps);
-    new G4PVPlacement(rot, pos_low, mppc_lv, "MppcPV",
-                      mother_lv, false, i+n_mppc, m_check_overlaps);
+      new G4PVPlacement(rot, pos_up, mppc_lv, "MppcPV",
+                        mother_lv, false, i, m_check_overlaps);
+      new G4PVPlacement(rot, pos_low, mppc_lv, "MppcPV",
+                        mother_lv, false, i+n_mppc, m_check_overlaps);
+    }
+  } else if (12.0*mm <= quartz_thickness) {
+    for(G4int i=0; i<n_mppc; ++i){
+      G4double z_offset = quartz_thickness/6.0 + 1.0*mm;
+      G4ThreeVector pos_up1(
+			    -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
+			    kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,
+			    z_offset);
+      G4ThreeVector pos_up2(
+			    -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
+			    kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,
+			    -z_offset);
+      G4ThreeVector pos_low1(
+			     -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
+			     -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,
+			     z_offset);
+      G4ThreeVector pos_low2(
+			     -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
+			     -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,
+			     -z_offset);
+    
+      new G4PVPlacement(rot, pos_up1, mppc_lv, "MppcPV",
+			mother_lv, false, i, m_check_overlaps);
+      new G4PVPlacement(rot, pos_up2, mppc_lv, "MppcPV",
+			mother_lv, false, i+n_mppc, m_check_overlaps);
+    
+      new G4PVPlacement(rot, pos_low1, mppc_lv, "MppcPV",
+			mother_lv, false, i+2*n_mppc, m_check_overlaps);
+      new G4PVPlacement(rot, pos_low2, mppc_lv, "MppcPV",
+			mother_lv, false, i+3*n_mppc, m_check_overlaps);
+    }
   }
-
-  // for(G4int i=0; i<n_mppc; ++i){
-  //   G4ThreeVector pos_up1(
-  // 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
-  // 		      kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,
-  // 		      5.0*mm);
-  //   G4ThreeVector pos_up2(
-  // 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
-  // 		      kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,
-  // 		      -5.0*mm);
-    
-  //   G4ThreeVector pos_low1(
-  // 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
-  // 		      -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,
-  // 		      5.0*mm);
-  //   G4ThreeVector pos_low2(
-  // 		      -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i),
-  // 		      -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,
-  // 		      -5.0*mm);
-    
-  //   new G4PVPlacement(rot, pos_up1, mppc_lv, "MppcPV",
-  //                     mother_lv, false, i, m_check_overlaps);
-  //   new G4PVPlacement(rot, pos_up2, mppc_lv, "MppcPV",
-  //                     mother_lv, false, i+n_mppc, m_check_overlaps);
-    
-  //   new G4PVPlacement(rot, pos_low1, mppc_lv, "MppcPV",
-  //                     mother_lv, false, i+2*n_mppc, m_check_overlaps);
-  //   new G4PVPlacement(rot, pos_low2, mppc_lv, "MppcPV",
-  //                     mother_lv, false, i+3*n_mppc, m_check_overlaps);
-  // }
 
   mppc_lv->SetVisAttributes(G4Colour::Blue());
 
-  // -- MPPC Surface -----
-  auto surface_mppc = new G4OpticalSurface("surface_mppc");
-  surface_mppc->SetModel(unified);
-  surface_mppc->SetType(dielectric_dielectric);
-  // surface_mppc->SetType(dielectric_metal);
-  surface_mppc->SetFinish(polished);
+  // // -- MPPC Surface -----
+  // auto surface_mppc = new G4OpticalSurface("surface_mppc");
+  // surface_mppc->SetModel(unified);
+  // surface_mppc->SetType(dielectric_dielectric);
+  // surface_mppc->SetFinish(polished);
 
   // n_entries = photon_energy.size();
   // std::vector<G4double> mppc_reflec(n_entries, 0.05);
@@ -769,8 +782,8 @@ DetectorConstruction::ConstructKVC()
   // +--------+
   // | Teflon |
   // +--------+
-  G4double teflon_thickness    = 1.0 * mm;
-  G4double air_layer_thickness = 0.1 * mm;
+  G4double teflon_thickness    = 3.0 * mm;
+  G4double air_layer_thickness = gConfMan.GetDouble("air_layer_thickness") * mm;
   auto teflon_solid_full = new G4Box("TeflonSolidFull",
 			     kvc_size.x()/2.0 + air_layer_thickness + teflon_thickness,
 			     kvc_size.y()/2.0,
@@ -793,38 +806,47 @@ DetectorConstruction::ConstructKVC()
 
   // -- teflon surface -----
   auto surface_teflon = new G4OpticalSurface("surface_teflon");
-  surface_teflon->SetModel(DAVIS);
-  surface_teflon->SetType(dielectric_LUTDAVIS);
-  surface_teflon->SetFinish(RoughTeflon_LUT);
-  // surface_teflon->SetModel(unified);
-  // surface_teflon->SetType(dielectric_dielectric);
-  // surface_teflon->SetFinish(groundteflonair);
+  // surface_teflon->SetModel(DAVIS);
+  // surface_teflon->SetType(dielectric_LUTDAVIS);
+  // surface_teflon->SetFinish(RoughTeflon_LUT);
+  surface_teflon->SetModel(unified);
+  surface_teflon->SetType(dielectric_dielectric);
+  surface_teflon->SetFinish(groundfrontpainted);
   
   auto surface_teflon_prop = new G4MaterialPropertiesTable();
-  photon_energy    = {1.3*eV,1.56*eV,1.61*eV,1.74*eV,1.90*eV,2.05*eV,2.22*eV,2.34*eV,5.42*eV,7*eV};
+  photon_energy = {1.3*eV, 1.56*eV, 1.61*eV, 1.74*eV, 1.90*eV, 2.05*eV, 2.22*eV, 2.34*eV, 5.42*eV, 7.0*eV};
+  n_entries = photon_energy.size();
   std::vector<G4double> teflon_reflec{0.85, 0.91, 0.93, 0.95, 0.97, 0.98, 1.0, 1.0, 1.0, 1.0};
-  n_entries = photon_energy.size();
+  std::vector<G4double> teflon_specularLobe(n_entries, 0.05);
+  std::vector<G4double> teflon_specularSpike(n_entries, 0.05);
+  std::vector<G4double> teflon_backScatter(n_entries, 0.0);
+  
   surface_teflon_prop->AddProperty("REFLECTIVITY", &photon_energy[0], &teflon_reflec[0], n_entries);
-
-  photon_energy = {1.77 * eV, 2.07 * eV, 2.48 * eV, 3.10 * eV, 4.13 * eV}; 
-  n_entries = photon_energy.size();
-  std::vector<G4double> teflon_specularLobe(n_entries, 0.1);
-  std::vector<G4double> teflon_specularSpike = {0.05, 0.05, 0.05, 0.05, 0.05};
-  std::vector<G4double> teflon_backScatter = {0.0, 0.0, 0.0, 0.0, 0.0};
   surface_teflon_prop->AddProperty("SPECULARLOBECONSTANT", &photon_energy[0], &teflon_specularLobe[0], n_entries);
   surface_teflon_prop->AddProperty("SPECULARSPIKECONSTANT", &photon_energy[0], &teflon_specularSpike[0], n_entries);
   surface_teflon_prop->AddProperty("BACKSCATTERCONSTANT", &photon_energy[0], &teflon_backScatter[0], n_entries);
   surface_teflon->SetMaterialPropertiesTable(surface_teflon_prop);
   new G4LogicalSkinSurface("TeflonSurface", teflon_lv, surface_teflon);
 
+  // G4VPhysicalVolume* kvc_pv = store->GetVolume("KvcPV", false);
+  // G4VPhysicalVolume* teflon_pv = store->GetVolume("TeflonPV", false);
+  // if (!kvc_pv) {
+  //   G4cerr << "Error: Could not find KVC Physical Volume" << G4endl;
+  // } else if (!teflon_pv) {
+  //   G4cerr << "Error: Could not find Teflon Physical Volume" << G4endl;
+  // } else {
+  //   new G4LogicalBorderSurface("QuartzToTeflon_Surface", kvc_pv, teflon_pv, surface_teflon);
+  //   new G4LogicalBorderSurface("TeflonToQuartz_Surface", teflon_pv, kvc_pv, surface_teflon);
+  // }
+
   
   // +------------+
   // | Blacksheet |
   // +------------+
   auto blacksheet_solid_full = new G4Box("BlacksheetSolidFull",
-			     kvc_size.x()/2.0 + air_layer_thickness + teflon_thickness + 2.0*mm,
-			     kvc_size.y()/2.0 + 3.0*mm,
-			     kvc_size.z()/2.0 + air_layer_thickness + teflon_thickness + 2.0*mm);
+			     kvc_size.x()/2.0 + air_layer_thickness + teflon_thickness + 4.0*mm,
+			     kvc_size.y()/2.0 + 5.0*mm,
+			     kvc_size.z()/2.0 + air_layer_thickness + teflon_thickness + 4.0*mm);
   auto blacksheet_solid_cut = new G4Box("BlacksheetSolidCut",
 			     kvc_size.x()/2.0 + air_layer_thickness + teflon_thickness + 1.0*mm,
 			     kvc_size.y()/2.0 + 2.0*mm,
@@ -852,6 +874,17 @@ DetectorConstruction::ConstructKVC()
   surface_bs_prop->AddProperty("REFLECTIVITY", &photon_energy[0], &bs_reflec[0], n_entries);
   surface_bs->SetMaterialPropertiesTable(surface_bs_prop);
   new G4LogicalSkinSurface("BlackSheetSurface", blacksheet_lv, surface_bs);
+  
+  // // G4PhysicalVolumeStore* store = G4PhysicalVolumeStore::GetInstance();
+  // G4VPhysicalVolume* kvc_mother_pv = store->GetVolume("KvcMotherPV", false);
+  // G4VPhysicalVolume* blacksheet_pv = store->GetVolume("BlacksheetPV", false);
+  // if (!kvc_mother_pv) {
+  //   G4cerr << "Error: Could not find KVC Mother Physical Volume" << G4endl;
+  // } else if (!blacksheet_pv) {
+  //   G4cerr << "Error: Could not find Blacksheet Physical Volume" << G4endl;
+  // } else {
+  //   new G4LogicalBorderSurface("AirToBlacksheet_Surface", kvc_mother_pv, blacksheet_pv, surface_bs);
+  // }
   
 }
 

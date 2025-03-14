@@ -6,7 +6,7 @@
 
 class ConfManager {
 public:
-    static ConfManager& Instance();
+    static ConfManager& GetInstance();
     
     std::string Get(const std::string& key) const;
     double GetDouble(const std::string& key) const;

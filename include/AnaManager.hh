@@ -23,6 +23,7 @@ private:
   AnaManager& operator=(const AnaManager&);
   
 private:
+  G4String m_output_rootfile_path;
   TFile* m_file;
   TTree* m_tree;
   G4int m_evnum;
@@ -61,6 +62,8 @@ public:
   void SetBeamEnergy(G4double beam_energy);
   void SetBeamMomentum(G4ThreeVector beam_momentum);
   void SetBeamPosition(G4ThreeVector beam_position);
+  void SetOutputRootfilePath(G4String output_rootfile_path);
+  G4String GetOutputRootfilePath();
 };
 
 #endif

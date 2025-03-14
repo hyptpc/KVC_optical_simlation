@@ -3,7 +3,7 @@
 #include <sstream>
 #include <iostream>
 
-ConfManager& ConfManager::Instance() {
+ConfManager& ConfManager::GetInstance() {
     static ConfManager instance;
     return instance;
 }

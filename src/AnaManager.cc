@@ -29,6 +29,7 @@ AnaManager& AnaManager::GetInstance()
 
 AnaManager::AnaManager()
   : m_file(),
+    m_output_rootfile_path("test.root"),
     m_tree(new TTree("tree", "GEANT4 optical simulation for KVC")),
     m_evnum(0),
     m_nhit_mppc(0),
@@ -51,8 +52,7 @@ AnaManager::~AnaManager()
 //_____________________________________________________________________________
 void AnaManager::BeginOfRunAction(const G4Run*)
 {
-  ConfManager& conf = ConfManager::Instance();
-  m_file = new TFile(conf.Get("root_path").c_str(), "RECREATE");
+  m_file = new TFile(m_output_rootfile_path, "RECREATE");
   m_tree->Reset();
 
   m_tree->Branch("evnum", &m_evnum, "evnum/I");
@@ -186,4 +186,13 @@ void AnaManager::SetBeamPosition(G4ThreeVector beam_position)
   m_beam_pos_x = beam_position.x();
   m_beam_pos_y = beam_position.y();
   m_beam_pos_z = beam_position.z();
+}
+
+void AnaManager::SetOutputRootfilePath(G4String output_rootfile_path)
+{
+  m_output_rootfile_path = output_rootfile_path;
+}
+G4String AnaManager::GetOutputRootfilePath()
+{
+  return m_output_rootfile_path;
 }

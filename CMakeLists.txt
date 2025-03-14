@@ -46,24 +46,24 @@ file(GLOB inputs ${PROJECT_SOURCE_DIR}/*.in)
 
 #-------------------------------------------------------------------------------
 # Add the executable and link it to the necessary libraries
-add_executable(MPPCSim main.cc ${sources} ${headers})
-target_link_libraries(MPPCSim ${Geant4_LIBRARIES} ${ROOT_LIBRARIES})
+add_executable(KVCOpticalSim main.cc ${sources} ${headers})
+target_link_libraries(KVCOpticalSim ${Geant4_LIBRARIES} ${ROOT_LIBRARIES})
 
 #-------------------------------------------------------------------------------
 # Copy necessary scripts to the build directory
-set(MPPCSim_SCRIPTS
-    optPhoton.mac
+set(KVCOpticalSim_SCRIPTS
+    test.mac
     gui.mac
     vis.mac
 )
 
-foreach(_script ${MPPCSim_SCRIPTS})
+foreach(_script ${KVCOpticalSim_SCRIPTS})
   configure_file(${PROJECT_SOURCE_DIR}/${_script} ${PROJECT_BINARY_DIR}/${_script} COPYONLY)
 endforeach()
 
 #-------------------------------------------------------------------------------
 # Install the executable and scripts
-install(TARGETS MPPCSim DESTINATION bin)
+install(TARGETS KVCOpticalSim DESTINATION bin)
 
 if (GEANT4_USE_GDML)
   install(FILES ${detectors} ${macros} ${inputs} DESTINATION bin)

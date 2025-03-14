@@ -20,47 +20,27 @@
 
 namespace
 {
+  auto& gAnaMan  = AnaManager::GetInstance();
+  auto& gConfMan = ConfManager::GetInstance();
   void PrintUsage()
   {
-    G4cerr << " Usage: " << G4endl;
-#ifdef GEANT4_USE_GDML
-    G4cerr << " MPPCSim <conf file> [-g gdmlfile] [-m macro ] [-u UIsession] "
+    G4cerr << " Usage: " << G4endl
+	   << " MPPCSim <conf file> <output rootfile name> [macro]"
            << G4endl;
-#else
-    G4cerr << " MPPCSim <conf file> [-m macro ] [-u UIsession] "
-           << G4endl;
-#endif
   }
 }  // namespace
 
 int main(int argc, char** argv)
 {
-  if (argc < 2 || argc > 6)
-  {
+  if (argc < 3 || argc > 4) {
     PrintUsage();
     return 1;
   }
-  ConfManager& config = ConfManager::Instance();
-  config.LoadConfigFile(argv[1]); 
+  gConfMan.LoadConfigFile(argv[1]); 
+  gAnaMan.SetOutputRootfilePath(argv[2]);
   
-  G4String gdmlfile;
   G4String macro;
-  G4String session;
-
-  for (G4int i = 2; i < argc; i = i + 3)
-  {
-    if (G4String(argv[i]) == "-g")
-      gdmlfile = argv[i + 1];
-    else if (G4String(argv[i]) == "-m")
-      macro = argv[i + 1];
-    else if (G4String(argv[i]) == "-u")
-      session = argv[i + 1];
-    else
-    {
-      PrintUsage();
-      return 1;
-    }
-  }
+  if (argc == 4) macro = argv[3];
 
   G4UIExecutive* ui = nullptr;
   if (macro.empty())
@@ -69,8 +49,6 @@ int main(int argc, char** argv)
   }
 
   auto runManager = new G4RunManager();
-
-  AnaManager::GetInstance();
 
   std::random_device rd;
   G4Random::setTheSeed(rd());
@@ -83,33 +61,21 @@ int main(int argc, char** argv)
   physicsList->ReplacePhysics(new G4EmStandardPhysics_option4());
   auto opticalPhysics = new G4OpticalPhysics();
   physicsList->RegisterPhysics(opticalPhysics);
-  // physicsList->RegisterPhysics(new G4DecayPhysics());  
+  if (gConfMan.GetInt("decay") == 1) physicsList->RegisterPhysics(new G4DecayPhysics());
   runManager->SetUserInitialization(physicsList);
 
-    
-  auto optical_params = G4OpticalParameters::Instance();
-
   // G4Cerenkov setting
+  auto optical_params = G4OpticalParameters::Instance();
   optical_params->SetCerenkovMaxPhotonsPerStep(100);
   optical_params->SetCerenkovStackPhotons(true);
   optical_params->SetCerenkovTrackSecondariesFirst(true);
   optical_params->SetCerenkovVerboseLevel(1);
   optical_params->SetBoundaryVerboseLevel(1);
-  
-  // // // G4Scintillation setting
-  // // optical_params->SetScintByParticleType(false);
-  // // optical_params->SetScintTrackInfo(false);
-  // // optical_params->SetScintTrackSecondariesFirst(true);
-  // // optical_params->SetScintFiniteRiseTime(false);
-  // // optical_params->SetScintStackPhotons(true);
-  // // optical_params->SetScintVerboseLevel(1);
-
-  // G4OpAbsorption setting
   optical_params->SetAbsorptionVerboseLevel(1);
-  
-  
+    
   runManager->SetUserInitialization(new ActionInitialization());
   runManager->Initialize();
+
   
   G4VisManager* visManager = new G4VisExecutive("Quiet");
   visManager->Initialize();
