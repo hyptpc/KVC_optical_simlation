@@ -629,6 +629,7 @@ DetectorConstruction::ConstructKVC()
   using CLHEP::eV;
   std::vector<G4double> photon_energy;  
   G4int n_entries;
+  G4PhysicalVolumeStore* store = G4PhysicalVolumeStore::GetInstance();
 
   G4double quartz_thickness = gConfMan.GetDouble("quartz_thickness") * mm;
   G4int do_segmentize = gConfMan.GetInt("do_segmentize");
@@ -678,7 +679,7 @@ DetectorConstruction::ConstructKVC()
   surface_quartz->SetModel(unified);
   surface_quartz->SetType(dielectric_dielectric);
   surface_quartz->SetFinish(polished);
-  new G4LogicalSkinSurface("QuartzSurface", kvc_lv, surface_quartz);
+  // new G4LogicalSkinSurface("QuartzSurface", kvc_lv, surface_quartz);
 
   
   // +------+
@@ -761,7 +762,6 @@ DetectorConstruction::ConstructKVC()
   // surface_mppc_prop->AddProperty("REFLECTIVITY", &photon_energy[0], &mppc_reflec[0], n_entries);
   // surface_mppc->SetMaterialPropertiesTable(surface_mppc_prop);
 
-  // G4PhysicalVolumeStore* store = G4PhysicalVolumeStore::GetInstance();
   // G4VPhysicalVolume* kvc_pv = store->GetVolume("KvcPV", false);
   // if (!kvc_pv) {
   //   G4cerr << "Error: Could not find KVC physical volume!" << G4endl;
@@ -817,27 +817,30 @@ DetectorConstruction::ConstructKVC()
   photon_energy = {1.3*eV, 1.56*eV, 1.61*eV, 1.74*eV, 1.90*eV, 2.05*eV, 2.22*eV, 2.34*eV, 5.42*eV, 7.0*eV};
   n_entries = photon_energy.size();
   std::vector<G4double> teflon_reflec{0.85, 0.91, 0.93, 0.95, 0.97, 0.98, 1.0, 1.0, 1.0, 1.0};
-  std::vector<G4double> teflon_specularLobe(n_entries, 0.05);
-  std::vector<G4double> teflon_specularSpike(n_entries, 0.05);
+  // std::vector<G4double> teflon_reflec(n_entries, 1.0);
+  std::vector<G4double> teflon_trasmittance(n_entries, 0.0);
+  std::vector<G4double> teflon_specularLobe(n_entries, 0.0);
+  std::vector<G4double> teflon_specularSpike(n_entries, 0.0);
   std::vector<G4double> teflon_backScatter(n_entries, 0.0);
   
   surface_teflon_prop->AddProperty("REFLECTIVITY", &photon_energy[0], &teflon_reflec[0], n_entries);
+  // surface_teflon_prop->AddProperty("TRANSMITTANCE", &photon_energy[0], &teflon_trasmittance[0], n_entries);
   surface_teflon_prop->AddProperty("SPECULARLOBECONSTANT", &photon_energy[0], &teflon_specularLobe[0], n_entries);
   surface_teflon_prop->AddProperty("SPECULARSPIKECONSTANT", &photon_energy[0], &teflon_specularSpike[0], n_entries);
   surface_teflon_prop->AddProperty("BACKSCATTERCONSTANT", &photon_energy[0], &teflon_backScatter[0], n_entries);
   surface_teflon->SetMaterialPropertiesTable(surface_teflon_prop);
-  new G4LogicalSkinSurface("TeflonSurface", teflon_lv, surface_teflon);
+  // new G4LogicalSkinSurface("TeflonSurface", teflon_lv, surface_teflon);
 
-  // G4VPhysicalVolume* kvc_pv = store->GetVolume("KvcPV", false);
-  // G4VPhysicalVolume* teflon_pv = store->GetVolume("TeflonPV", false);
-  // if (!kvc_pv) {
-  //   G4cerr << "Error: Could not find KVC Physical Volume" << G4endl;
-  // } else if (!teflon_pv) {
-  //   G4cerr << "Error: Could not find Teflon Physical Volume" << G4endl;
-  // } else {
-  //   new G4LogicalBorderSurface("QuartzToTeflon_Surface", kvc_pv, teflon_pv, surface_teflon);
-  //   new G4LogicalBorderSurface("TeflonToQuartz_Surface", teflon_pv, kvc_pv, surface_teflon);
-  // }
+  G4VPhysicalVolume* kvc_pv = store->GetVolume("KvcPV", false);
+  G4VPhysicalVolume* teflon_pv = store->GetVolume("TeflonPV", false);
+  if (!kvc_pv) {
+    G4cerr << "Error: Could not find KVC Physical Volume" << G4endl;
+  } else if (!teflon_pv) {
+    G4cerr << "Error: Could not find Teflon Physical Volume" << G4endl;
+  } else {
+    new G4LogicalBorderSurface("QuartzToTeflon_Surface", kvc_pv, teflon_pv, surface_teflon);
+    new G4LogicalBorderSurface("TeflonToQuartz_Surface", teflon_pv, kvc_pv, surface_teflon);
+  }
 
   
   // +------------+

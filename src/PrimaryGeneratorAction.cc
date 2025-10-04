@@ -52,8 +52,10 @@ void PrimaryGeneratorAction::GenerateBeam(G4Event* anEvent)
   // -----------------------
   G4double p0 = gConfMan.GetDouble("momentum") * GeV;
   G4double sigma_p = p0 * 0.02 / 2.355;
-  G4double momentum = G4RandGauss::shoot(p0, sigma_p);
+  // G4double momentum = G4RandGauss::shoot(p0, sigma_p);
+  G4double momentum = p0;
 
+  
   G4double mass = particle->GetPDGMass();
   G4double energy = std::sqrt(mass*mass + momentum*momentum);
   gAnaMan.SetBeamEnergy(energy);
