@@ -15,5 +15,5 @@ after build
 
 for example
 ```
-./KVCOpticalSim ../conf/dedault.conf test.root test.mac
+./KVCOpticalSim ../conf/default.conf test.root test.mac
 ```
