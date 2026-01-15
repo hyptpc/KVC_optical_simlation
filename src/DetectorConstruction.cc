@@ -105,6 +105,11 @@ DetectorConstruction::ConstructElements()
   name = "Fluorine";
   m_element_map[name] = new G4Element(name, symbol="F", Z=9.,
                                       A=18.998 *g/mole);
+
+  name = "Titanium";
+  m_element_map[name] = new G4Element(name, symbol="Ti", Z=22.,
+                                      A=47.867 * g/mole);
+
 }
 
 //_____________________________________________________________________________
@@ -237,7 +242,26 @@ DetectorConstruction::ConstructMaterials()
   m_material_map[name] = new G4Material(name, density=2.2 *g/cm3, nel=2);
   m_material_map[name]->AddElement(m_element_map["Carbon"], natoms=2);
   m_material_map[name]->AddElement(m_element_map["Fluorine"],  natoms=4);
+
+  // Mylar
+  name = "Mylar";
+  m_material_map[name] = new G4Material(name, density=1.39*g/cm3, ncomponents=3);
+  m_material_map[name]->AddElement(m_element_map["Carbon"], 10);
+  m_material_map[name]->AddElement(m_element_map["Hydrogen"], 8);
+  m_material_map[name]->AddElement(m_element_map["Oxygen"], 4);
+
+  // EJ-510 White Reflective Paint (approximate)　あと調節
+  name = "EJ510";
+  // 密度：白色エポキシ塗料の代表値（文献・経験値）
+  m_material_map[name] = new G4Material(name, density = 1.2 * g/cm3, nel = 4);
+  // 化学組成（エポキシ + 白色顔料の近似）
+  // 厳密である必要はない（光学は surface が支配）
+  m_material_map[name]->AddElement(m_element_map["Carbon"],   natoms = 15);
+  m_material_map[name]->AddElement(m_element_map["Hydrogen"], natoms = 18);
+  m_material_map[name]->AddElement(m_element_map["Oxygen"],   natoms = 4);
+  m_material_map[name]->AddElement(m_element_map["Titanium"], natoms = 1); // TiO2 顔料の代表
 }
+
 
 //_____________________________________________________________________________
 void
@@ -575,18 +599,55 @@ DetectorConstruction::AddOpticalProperties()
 
 
   // +-----------------+
-  // | Teflon Property |
+  // | Teflon Property | 
   // +-----------------+
   auto teflon_prop = new G4MaterialPropertiesTable();
 
   photon_energy     = { 1.3 * eV, 7.0 * eV};
   refractive_index  = { 1.35, 1.35 };
   absorption_length = { 1.0e-11 * m, 1.0e-11 * m };
+  // absorption_length = { 1.0 * m, 1.0 * m };
   n_entries = photon_energy.size();
   
   teflon_prop->AddProperty("RINDEX", &photon_energy[0], &refractive_index[0], n_entries);
   teflon_prop->AddProperty("ABSLENGTH", &photon_energy[0], &absorption_length[0], n_entries);
   m_material_map["Teflon"]->SetMaterialPropertiesTable(teflon_prop);
+
+  // +----------------+
+  // | Mylar Property | あとで調節
+  // +----------------+
+
+  //マイラーの反射を、dielectric_metalとしていて、光は投下しないので、ここは意味ない。
+
+  auto mylar_prop = new G4MaterialPropertiesTable();
+  photon_energy = {1.3*eV, 7.0*eV};
+
+  std::vector<G4double> mylar_rindex = {1.65, 1.65}; // 屈折率 PET の代表値
+  std::vector<G4double> mylar_abs    = {10*mm, 10*mm}; // 仮
+
+  mylar_prop->AddProperty("RINDEX", &photon_energy[0], &mylar_rindex[0], 2);
+  mylar_prop->AddProperty("ABSLENGTH", &photon_energy[0], &mylar_abs[0], 2);
+
+  m_material_map["Mylar"]->SetMaterialPropertiesTable(mylar_prop);
+
+  // +-----------------+
+  // | EJ-510 Property | あとで調節
+  // +-----------------+
+
+  auto ej510_prop = new G4MaterialPropertiesTable();
+
+  std::vector<G4double> ej510_photon_energy{1.3*eV, 7.0*eV};
+
+  // 屈折率：塗料は実質意味を持たないので定数でOK
+  std::vector<G4double> ej510_rindex = {1.5, 1.5};
+
+  // 吸収長：入った光は即死（= 不透明塗料）
+  std::vector<G4double> ej510_abs = {1e-9*m, 1e-9*m};
+  ej510_prop->AddProperty("RINDEX",&ej510_photon_energy[0],&ej510_rindex[0],photon_energy.size());
+  ej510_prop->AddProperty("ABSLENGTH",&ej510_photon_energy[0],&ej510_abs[0],photon_energy.size());
+
+  // 既存 material（Teflon or 専用 Paint）に付与
+  m_material_map["EJ510"]->SetMaterialPropertiesTable(ej510_prop);
 
   
   // +---------------+
@@ -641,31 +702,31 @@ DetectorConstruction::ConstructKVC()
   G4ThreeVector origin_pos(0.0*mm, 0.0*mm, 0.0*mm);
 
   // +---------------------+
-  // | Mother Volume (Air) |
+  // | Mother Volume (Air) | 検出器全体を包む空気ボリューム
   // +---------------------+
-  auto mother_solid = new G4Box("KvcMotherSolid",
+  auto mother_solid = new G4Box("KvcMotherSolid", 
                                 kvc_size.x()/2.0 + 50.0*mm,
                                 kvc_size.y()/2.0 + 50.0*mm,
-                                kvc_size.z()/2.0 + 50.0*mm);
+                                kvc_size.z()/2.0 + 50.0*mm);  //空気の大きさ
   auto mother_lv = new G4LogicalVolume(mother_solid,
-                                       m_material_map["Air"],
+                                       m_material_map["Air"], //空間は空気で満たされている。
                                        "KvcMotherLV");
   new G4PVPlacement(nullptr, origin_pos, mother_lv,
                     "KvcMotherPV", m_world_lv, false, 0, m_check_overlaps);
   mother_lv->SetVisAttributes(G4VisAttributes::GetInvisible());
 
   // -- air surface -----
-  auto surface_air = new G4OpticalSurface("surface_air");
+  auto surface_air = new G4OpticalSurface("surface_air"); 
   surface_air->SetModel(unified);
-  surface_air->SetType(dielectric_dielectric);
-  surface_air->SetFinish(ground);  
-  new G4LogicalSkinSurface("AirSurface", mother_lv, surface_air);
+  surface_air->SetType(dielectric_dielectric); //誘電体同士の界面
+  // surface_air->SetFinish(ground);  //ざらざら
+  // new G4LogicalSkinSurface("AirSurface", mother_lv, surface_air); //スキンsurface、
 
   
   // +----------+
   // | Radiator |
   // +----------+
-  auto kvc_solid = new G4Box("KvcSolid",
+  auto kvc_solid = new G4Box("KvcSolid", //クォーツの大きさ
 			     kvc_size.x()/2.0,
 			     kvc_size.y()/2.0,
 			     kvc_size.z()/2.0);
@@ -675,11 +736,44 @@ DetectorConstruction::ConstructKVC()
   kvc_lv->SetVisAttributes(G4Colour::Yellow());
 
   // -- Quartz surface -----
+
+  //ref: https://oxon.hatenablog.com/entry/20100120/1263973341
+  //ref: https://mirror.math.princeton.edu/pub/gentoo/distfiles/BookForAppliDev-4.10.2.pdf
+
   auto surface_quartz = new G4OpticalSurface("surface_quartz");
-  surface_quartz->SetModel(unified);
+  surface_quartz->SetModel(unified); 
   surface_quartz->SetType(dielectric_dielectric);
-  surface_quartz->SetFinish(polished);
-  // new G4LogicalSkinSurface("QuartzSurface", kvc_lv, surface_quartz);
+  surface_quartz->SetFinish(ground);
+  G4double sigma_alpha = gConfMan.GetDouble("sigma_alpha"); //値をconfファイルから読み込む
+  surface_quartz->SetSigmaAlpha(sigma_alpha);//値をconfファイルから読み込む
+
+  //クォーツ表面の反射特性を、confから読む
+  G4double q_lobe  =gConfMan.GetDouble("quartz_specularLobe");
+  G4double q_spike =gConfMan.GetDouble("quartz_specularSpike");
+  G4double q_back   =gConfMan.GetDouble("quartz_backScatter");
+
+  auto quartz_prop = new G4MaterialPropertiesTable();
+  std::vector<G4double> quartz_photon_energy = {1.3*eV, 7.0*eV};
+  G4int quartz_energy_entries = quartz_photon_energy.size();
+
+  std::vector<G4double> quartz_specularlobe(quartz_energy_entries, q_lobe);
+  std::vector<G4double> quartz_specularspike(quartz_energy_entries, q_spike);
+  std::vector<G4double> quartz_backscatter(quartz_energy_entries, q_back);
+
+  quartz_prop->AddProperty("SPECULARLOBECONSTANT", &quartz_photon_energy[0], &quartz_specularlobe[0], quartz_energy_entries);
+  quartz_prop->AddProperty("SPECULARSPIKECONSTANT", &quartz_photon_energy[0], &quartz_specularspike[0], quartz_energy_entries);
+  quartz_prop->AddProperty("BACKSCATTERCONSTANT", &quartz_photon_energy[0], &quartz_backscatter[0], quartz_energy_entries);
+
+  surface_quartz->SetMaterialPropertiesTable(quartz_prop); 
+  
+
+
+  
+  // surface_quartz->SetFinish(polished); //つるつる？ ここで磨りガラスの設定にできるかも
+  
+  // surface_quartz->SetSigmaAlpha(0.05); //0.02=0.1あたりで調節
+  
+  // new G4LogicalSkinSurface("QuartzSurface", kvc_lv, surface_quartz);　->skinは不採用で、のちにBordersurfaceが適応されている。
 
   
   // +------+
@@ -772,17 +866,94 @@ DetectorConstruction::ConstructKVC()
   //     }
   //   }
   // }
+
+
  
   // -- resister SD -----
   auto mppcSD = new MPPCSD("mppcSD");
   G4SDManager::GetSDMpointer()->AddNewDetector(mppcSD);
-  mppc_lv->SetSensitiveDetector(mppcSD);
+  mppc_lv->SetSensitiveDetector(mppcSD);  //MPPCに光子が入ったらヒットを記録
 
+    // +---------------+
+    // | 被覆材material |
+    // +---------------+
+    
+    G4int wrap_type = gConfMan.GetInt("wrap_type"); //wrap_type= 0 or 1 or 2 をconfから取得
+    G4OpticalSurface* wrap_surface = nullptr;
+    G4Material* wrap_material = nullptr;
+
+    if (wrap_type == 0) {
+      wrap_material = m_material_map["Teflon"];
+    }
+    else if (wrap_type == 1) {
+      wrap_material = m_material_map["Mylar"];
+    }
+    else if (wrap_type == 2) {
+      wrap_material = m_material_map["EJ510"]; // 塗料下地は仮に Teflon
+    }
+
+
+    // +---------+
+    // |  mylar  | VME PET 境界での反射ルールが作られる。 
+    // +---------+
+  auto surface_mylar = new G4OpticalSurface("surface_mylar");
+  surface_mylar->SetModel(unified);
+  surface_mylar->SetType(dielectric_metal);   // ←重要、アルミ蒸着
+  surface_mylar->SetFinish(polished);
+
+  auto mylar_prop = new G4MaterialPropertiesTable();
+  photon_energy = {1.3*eV, 7.0*eV};
+  std::vector<G4double> mylar_reflec = {0.90, 0.90}; //90~95%という情報が多い 、調節余地あり
+
+  mylar_prop->AddProperty("REFLECTIVITY",&photon_energy[0],&mylar_reflec[0],photon_energy.size());
+  surface_mylar->SetMaterialPropertiesTable(mylar_prop);
+
+    // +-----------+
+    // |  白色塗料  |
+    // +-----------+ 
+
+    auto surface_ej510 = new G4OpticalSurface("surface_ej510");
+    surface_ej510->SetModel(unified);
+    surface_ej510->SetType(dielectric_dielectric);
+    surface_ej510->SetFinish(groundfrontpainted);
+    auto ej510_prop = new G4MaterialPropertiesTable();
+    photon_energy = {
+      2.07*eV, // 600
+      2.25*eV, // 550
+      2.48*eV, // 500
+      2.76*eV, // 450
+      2.95*eV, // 420
+      3.10*eV, // 400
+      3.17*eV, // 390
+      3.26*eV, // 380
+      3.35*eV  // 370
+    };
+    // 図から読み取った反射率
+    std::vector<G4double> ej510_reflec = {
+      0.97, // 600
+      0.98, // 550
+      0.98, // 500
+      0.97, // 450
+      0.95, // 420
+      0.92, // 400
+      0.90, // 390
+      0.75, // 380
+      0.65  // 370
+    };
+
+    std::vector<G4double> zero(photon_energy.size(), 0.0);
+
+    ej510_prop->AddProperty("REFLECTIVITY", &photon_energy[0], &ej510_reflec[0], photon_energy.size()); //ここで拡散度(Lambertian)を調節：Lambertian = 1 − (lobe + spike + back)
+    ej510_prop->AddProperty("SPECULARLOBECONSTANT", &photon_energy[0], &zero[0], photon_energy.size());
+    ej510_prop->AddProperty("SPECULARSPIKECONSTANT", &photon_energy[0], &zero[0], photon_energy.size());
+    ej510_prop->AddProperty("BACKSCATTERCONSTANT", &photon_energy[0], &zero[0], photon_energy.size());
+
+    surface_ej510->SetMaterialPropertiesTable(ej510_prop);
 
   // +--------+
   // | Teflon |
   // +--------+
-  G4double teflon_thickness    = 3.0 * mm;
+  G4double teflon_thickness    = 1.0 * mm;
   G4double air_layer_thickness = gConfMan.GetDouble("air_layer_thickness") * mm;
   auto teflon_solid_full = new G4Box("TeflonSolidFull",
 			     kvc_size.x()/2.0 + air_layer_thickness + teflon_thickness,
@@ -798,11 +969,14 @@ DetectorConstruction::ConstructKVC()
 							   teflon_solid_cut,
 							   nullptr,
 							   origin_pos);
-  
-  auto teflon_lv = new G4LogicalVolume(teflon_solid, m_material_map["Teflon"], "TeflonLV");
-  new G4PVPlacement(nullptr, origin_pos, teflon_lv, "TeflonPV",
-		    mother_lv, false, 0, m_check_overlaps);
-  teflon_lv->SetVisAttributes(G4Colour::White());
+
+
+  auto wrap_lv = new G4LogicalVolume(teflon_solid, wrap_material, "WrapLV"); //被覆材の形が作られる。teflon_solidが形(材質を含まない)。 wrap_materialが材質
+  auto wrap_pv = new G4PVPlacement(nullptr, origin_pos, wrap_lv, "WrapPV", mother_lv, false, 0, m_check_overlaps); 
+
+  // auto teflon_lv = new G4LogicalVolume(teflon_solid, m_material_map["Teflon"], "TeflonLV");
+  // new G4PVPlacement(nullptr, origin_pos, teflon_lv, "TeflonPV" ,mother_lv, false, 0, m_check_overlaps);
+  wrap_lv->SetVisAttributes(G4Colour::White());
 
   // -- teflon surface -----
   auto surface_teflon = new G4OpticalSurface("surface_teflon");
@@ -811,17 +985,124 @@ DetectorConstruction::ConstructKVC()
   // surface_teflon->SetFinish(RoughTeflon_LUT);
   surface_teflon->SetModel(unified);
   surface_teflon->SetType(dielectric_dielectric);
-  surface_teflon->SetFinish(groundfrontpainted);
+  surface_teflon->SetFinish(groundfrontpainted); //front->backに変えた
+  G4double teflon_sigma_alpha = gConfMan.GetDouble("teflon_sigma_alpha");
+  surface_teflon->SetSigmaAlpha(teflon_sigma_alpha); //粗さパラメータ。0.1~0.3あたり
   
-  auto surface_teflon_prop = new G4MaterialPropertiesTable();
-  photon_energy = {1.3*eV, 1.56*eV, 1.61*eV, 1.74*eV, 1.90*eV, 2.05*eV, 2.22*eV, 2.34*eV, 5.42*eV, 7.0*eV};
-  n_entries = photon_energy.size();
-  std::vector<G4double> teflon_reflec{0.85, 0.91, 0.93, 0.95, 0.97, 0.98, 1.0, 1.0, 1.0, 1.0};
+    auto surface_teflon_prop = new G4MaterialPropertiesTable();
+  photon_energy = {1.38*eV, 1.39*eV, 1.40*eV, 1.41*eV, 1.42*eV, 1.43*eV,
+  1.44*eV, 1.45*eV, 1.46*eV, 1.47*eV, 1.48*eV, 1.49*eV,
+  1.50*eV, 1.51*eV, 1.52*eV, 1.53*eV, 1.54*eV, 1.55*eV,
+  1.56*eV, 1.57*eV, 1.58*eV, 1.59*eV, 1.60*eV, 1.61*eV,
+  1.62*eV, 1.63*eV, 1.64*eV, 1.65*eV, 1.66*eV, 1.67*eV,
+  1.68*eV, 1.69*eV, 1.70*eV, 1.71*eV, 1.72*eV, 1.73*eV,
+  1.75*eV, 1.76*eV, 1.77*eV, 1.79*eV, 1.80*eV, 1.82*eV,
+  1.84*eV, 1.85*eV, 1.87*eV, 1.89*eV, 1.91*eV, 1.92*eV,
+  1.94*eV, 1.95*eV, 1.97*eV, 1.98*eV, 2.00*eV, 2.02*eV,
+  2.03*eV, 2.05*eV, 2.07*eV, 2.08*eV, 2.10*eV, 2.12*eV,
+  2.14*eV, 2.16*eV, 2.18*eV, 2.19*eV, 2.21*eV, 2.23*eV,
+  2.25*eV, 2.28*eV, 2.30*eV, 2.32*eV, 2.34*eV, 2.36*eV,
+  2.38*eV, 2.41*eV, 2.43*eV, 2.46*eV, 2.48*eV, 2.51*eV,
+  2.53*eV, 2.56*eV, 2.58*eV, 2.61*eV, 2.64*eV, 2.67*eV,
+  2.70*eV, 2.73*eV, 2.76*eV, 2.79*eV, 2.82*eV, 2.85*eV,
+  2.88*eV, 2.92*eV, 2.95*eV, 2.99*eV, 3.02*eV, 3.06*eV,
+  3.10*eV, 3.14*eV, 3.18*eV, 3.22*eV, 3.26*eV, 3.31*eV,
+  3.35*eV, 3.40*eV, 3.44*eV, 3.49*eV, 3.54*eV, 3.59*eV,
+  3.65*eV, 3.70*eV, 3.76*eV, 3.82*eV, 3.88*eV};
+   n_entries = photon_energy.size();
+
+    std::vector<G4double> teflon_reflec{0.912, 0.912, 0.912, 0.912, 0.912, 0.912,
+    0.912, 0.913, 0.912, 0.912, 0.912, 0.912,
+    0.912, 0.914, 0.914, 0.912, 0.916, 0.916,
+    0.918, 0.916, 0.915, 0.915, 0.916, 0.916,
+    0.918, 0.917, 0.917, 0.917, 0.918, 0.917,
+    0.917, 0.918, 0.918, 0.918, 0.918, 0.918,
+    0.919, 0.918, 0.919, 0.918, 0.919, 0.918,
+    0.918, 0.918, 0.918, 0.919, 0.918, 0.918,
+    0.918, 0.918, 0.919, 0.919, 0.920, 0.920,
+    0.920, 0.921, 0.921, 0.921, 0.922, 0.922,
+    0.923, 0.924, 0.923, 0.924, 0.923, 0.924,
+    0.925, 0.925, 0.926, 0.926, 0.926, 0.927,
+    0.927, 0.927, 0.927, 0.928, 0.928, 0.928,
+    0.928, 0.930, 0.928, 0.928, 0.929, 0.928,
+    0.928, 0.929, 0.928, 0.928, 0.929, 0.930,
+    0.931, 0.931, 0.931, 0.931, 0.931, 0.932,
+    0.932, 0.934, 0.932, 0.933, 0.932, 0.933,
+    0.935, 0.936, 0.934, 0.936, 0.937, 0.940,
+    0.941};
+
+
+
+
+    // +----------+
+    // | 被覆材選択 |
+    // +----------+
+    if (wrap_type == 0) {
+      wrap_surface = surface_teflon;
+      G4cout << "[KVC] Wrap = Teflon" << G4endl;
+    }
+    else if (wrap_type == 1) {
+      wrap_surface = surface_mylar;
+      G4cout << "[KVC] Wrap = Mylar" << G4endl;
+    }
+    else if (wrap_type == 2) {
+      wrap_surface = surface_ej510;
+      G4cout << "[KVC] Wrap = EJ-510" << G4endl;
+    }
+    else {
+      G4Exception("DetectorConstruction::ConstructKVC",
+                  "InvalidWrapType",
+                  FatalException,
+                  "wrap_type must be 0,1,2");
+    }
+
+    // +---------+
+    // | 反射特性 |
+    // +---------+
+
+//spike,lube,backscatterをconfファイルから取得
+  G4double lobe  = gConfMan.GetDouble("teflon_specularLobe");
+  G4double spike = gConfMan.GetDouble("teflon_specularSpike");
+  G4double back  = gConfMan.GetDouble("teflon_backScatter"); 
+
   // std::vector<G4double> teflon_reflec(n_entries, 1.0);
-  std::vector<G4double> teflon_trasmittance(n_entries, 0.0);
-  std::vector<G4double> teflon_specularLobe(n_entries, 0.0);
-  std::vector<G4double> teflon_specularSpike(n_entries, 0.0);
-  std::vector<G4double> teflon_backScatter(n_entries, 0.0);
+  // std::vector<G4double> teflon_trasmittance(n_entries, 0.0);
+  // std::vector<G4double> teflon_specularLobe(n_entries, 0.1); //0.02
+  // std::vector<G4double> teflon_specularSpike(n_entries, 0.15); //0.08
+  // std::vector<G4double> teflon_backScatter(n_entries, 0.02); //0.02
+
+    // =====================================
+  // Optical property vectors
+  // =====================================
+  std::vector<G4double> teflon_transmittance(n_entries, 0.0);
+  std::vector<G4double> teflon_specularLobe(n_entries, lobe);
+  std::vector<G4double> teflon_specularSpike(n_entries, spike);
+  std::vector<G4double> teflon_backScatter(n_entries, back);
+
+
+                      // ---- sanity check（物理的保険）----
+                    G4double sum_spec = lobe + spike + back;
+                    if (sum_spec > 1.0) {
+                      G4cerr << "[ERROR] Teflon surface parameters invalid:" << G4endl
+                            << "  specularLobe   = " << lobe  << G4endl
+                            << "  specularSpike  = " << spike << G4endl
+                            << "  backScatter    = " << back  << G4endl
+                            << "  sum > 1.0 !!!" << G4endl;
+                      G4Exception("DetectorConstruction::ConstructKVC",
+                                  "InvalidTeflonSurface",
+                                  FatalException,
+                                  "Sum of reflection components exceeds 1.0");
+                    }
+
+                    // ---- debug print（scan 初期はON推奨）----
+                    G4cout << "[Teflon Surface Params]"
+                          << " Lobe=" << lobe
+                          << " Spike=" << spike
+                          << " Back=" << back
+                          << " Lambertian=" << (1.0 - sum_spec)
+                          << G4endl;
+
+
   
   surface_teflon_prop->AddProperty("REFLECTIVITY", &photon_energy[0], &teflon_reflec[0], n_entries);
   // surface_teflon_prop->AddProperty("TRANSMITTANCE", &photon_energy[0], &teflon_trasmittance[0], n_entries);
@@ -831,18 +1112,36 @@ DetectorConstruction::ConstructKVC()
   surface_teflon->SetMaterialPropertiesTable(surface_teflon_prop);
   // new G4LogicalSkinSurface("TeflonSurface", teflon_lv, surface_teflon);
 
-  G4VPhysicalVolume* kvc_pv = store->GetVolume("KvcPV", false);
-  G4VPhysicalVolume* teflon_pv = store->GetVolume("TeflonPV", false);
+  // auto store = G4PhysicalVolumeStore::GetInstance(); //追加
+  auto mother_pv   = store->GetVolume("KvcMotherPV", false); //追加
+  auto kvc_pv      = store->GetVolume("KvcPV", false); //追加
+  auto teflon_pv = store->GetVolume("TeflonPV", false); //追加
+
+  // G4VPhysicalVolume* kvc_pv = store->GetVolume("KvcPV", false);
+  // G4VPhysicalVolume* teflon_pv = store->GetVolume("TeflonPV", false);
   if (!kvc_pv) {
     G4cerr << "Error: Could not find KVC Physical Volume" << G4endl;
-  } else if (!teflon_pv) {
+  } else if (!wrap_pv) {
     G4cerr << "Error: Could not find Teflon Physical Volume" << G4endl;
   } else {
-    new G4LogicalBorderSurface("QuartzToTeflon_Surface", kvc_pv, teflon_pv, surface_teflon);
-    new G4LogicalBorderSurface("TeflonToQuartz_Surface", teflon_pv, kvc_pv, surface_teflon);
+
+    if (air_layer_thickness > 0.0){
+    new G4LogicalBorderSurface("QuartzToAir_Surface", kvc_pv, mother_pv, surface_quartz); // 空気クォーツ間 air≠0の時。
+    new G4LogicalBorderSurface("AirToQuartz_Surface", mother_pv, kvc_pv, surface_quartz); // 空気クォーツ間 air≠0の時。
+    // new G4LogicalBorderSurface("AirToTeflon", mother_pv, teflon_pv, surface_teflon);
+    // new G4LogicalBorderSurface("TeflonToAir", teflon_pv, mother_pv, surface_teflon); 
+    new G4LogicalBorderSurface("AirToWrap",mother_pv,wrap_pv,wrap_surface); // 空気被覆材間 air≠0の時。
+    new G4LogicalBorderSurface("WrapToAir",wrap_pv,mother_pv,wrap_surface); // 空気被覆材間 air≠0の時。
+    }
+
+    else{
+    new G4LogicalBorderSurface("QuartzToWrap_Surface", kvc_pv, wrap_pv, wrap_surface);    //クォーツ被覆材境界を設定。　air＝0の時。
+    new G4LogicalBorderSurface("WrapToQuartz_Surface", wrap_pv, kvc_pv, wrap_surface); //クォーツ被覆材境界を設定。　air＝0の時。
+    }
+
   }
 
-  
+    
   // +------------+
   // | Blacksheet |
   // +------------+
@@ -874,7 +1173,7 @@ DetectorConstruction::ConstructKVC()
   photon_energy = {1.3*eV, 7.0*eV};
   std::vector<G4double> bs_reflec{0.0, 0.0};
   n_entries = photon_energy.size();
-  surface_bs_prop->AddProperty("REFLECTIVITY", &photon_energy[0], &bs_reflec[0], n_entries);
+  surface_bs_prop->AddProperty("REFLECTIVITY", &photon_energy[0], &bs_reflec[0], n_entries); //reflectivityが0->完全吸収
   surface_bs->SetMaterialPropertiesTable(surface_bs_prop);
   new G4LogicalSkinSurface("BlackSheetSurface", blacksheet_lv, surface_bs);
   
@@ -888,6 +1187,8 @@ DetectorConstruction::ConstructKVC()
   // } else {
   //   new G4LogicalBorderSurface("AirToBlacksheet_Surface", kvc_mother_pv, blacksheet_pv, surface_bs);
   // }
+
+  
   
 }
 
@@ -902,7 +1203,7 @@ void DetectorConstruction::DumpMaterialProperties(G4Material* mat)
     return;
   }
 
-  std::vector<G4String> propertyNames = {"RINDEX", "ABSORPTION", "REFLECTIVITY"};
+  std::vector<G4String> propertyNames = {"RINDEX", "ABSLENGTH", "REFLECTIVITY"};
 
   for (const auto& prop : propertyNames) {
     if (matPropTable->ConstPropertyExists(prop)) {

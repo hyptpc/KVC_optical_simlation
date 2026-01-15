@@ -11,6 +11,12 @@
 
 #include "AnaManager.hh"
 
+#include "G4EventManager.hh"
+#include "EventAction.hh"
+
+#include "G4SystemOfUnits.hh"      
+#include "G4PhysicalConstants.hh"  
+
 namespace
 {
 auto& gAnaMan = AnaManager::GetInstance();
@@ -28,18 +34,33 @@ G4ClassificationOfNewTrack
 StackingAction::ClassifyNewTrack(const G4Track * aTrack)
 {    
 
-  if(aTrack->GetDefinition() == G4OpticalPhoton::OpticalPhotonDefinition())
-  {  // particle is optical photon
-    if(aTrack->GetParentID() > 0)
-    {  // particle is secondary
-      if(aTrack->GetCreatorProcess()->GetProcessName() == "Scintillation")
-        ++fScintillationAll;
-      else if(aTrack->GetCreatorProcess()->GetProcessName() == "Cerenkov") {
-	++fCerenkovAll;
+  if(aTrack->GetDefinition() == G4OpticalPhoton::OpticalPhotonDefinition()) //光子に着目
+  { 
+    if(aTrack->GetParentID() > 0){ // particle is secondary
+      const auto* creator = aTrack->GetCreatorProcess();
+      if (!creator) return fUrgent;     
 
-	const G4VPhysicalVolume* volume = aTrack->GetVolume();
-	if (volume->GetName() == "KvcPV") ++fCerenkovQuartz;
-	
+      if(aTrack->GetCreatorProcess()->GetProcessName() == "Scintillation") //生成プロセスがscintillationの場合、シンチレーション光としてカウント
+        ++fScintillationAll;
+      else if(aTrack->GetCreatorProcess()->GetProcessName() == "Cerenkov") { //生成プロセスがcernkovの場合、チェレンコフ光としてカウント
+	      ++fCerenkovAll;
+
+	  const G4VPhysicalVolume* volume = aTrack->GetVolume(); //光子の属している物理ボリュームを取得する。
+    const bool in_quartz = (volume && volume->GetName() == "KvcPV");
+    if (in_quartz) ++fCerenkovQuartz;
+
+    constexpr G4double Emin = 1.37 * eV;
+    constexpr G4double Emax = 3.87 * eV;
+    const G4double E = aTrack->GetKineticEnergy();
+
+    if(in_quartz && E >= Emin && E < Emax ){
+    auto eventAction = static_cast<EventAction*>(
+    G4EventManager::GetEventManager()->GetUserEventAction());
+    if (eventAction) eventAction->AddCerGen(); //ここでチェレンコフ光の数を追加
+    }
+    
+  }
+
 	// if (volume) {
 	//   G4cout << "Cerenkov photon generated in volume: " 
 	// 	 << volume->GetName() << G4endl;
@@ -49,7 +70,7 @@ StackingAction::ClassifyNewTrack(const G4Track * aTrack)
         
       }
     }
-  }
+  
 	
   return fUrgent;
 }

@@ -37,6 +37,7 @@ private:
   G4double m_beam_pos_x;
   G4double m_beam_pos_y;
   G4double m_beam_pos_z;  
+  G4int n_cer_gen; //チェレンコフ光発生数
 
   
   // std::vector<TVector3> m_pos;
@@ -64,6 +65,9 @@ public:
   void SetBeamPosition(G4ThreeVector beam_position);
   void SetOutputRootfilePath(G4String output_rootfile_path);
   G4String GetOutputRootfilePath();
+  //void FillTree(); //追加
+  void SetCerGen(Int_t val) { n_cer_gen = val; } //追加
+
 };
 
 #endif

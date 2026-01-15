@@ -58,8 +58,12 @@ void PrimaryGeneratorAction::GenerateBeam(G4Event* anEvent)
   
   G4double mass = particle->GetPDGMass();
   G4double energy = std::sqrt(mass*mass + momentum*momentum);
-  gAnaMan.SetBeamEnergy(energy);
-  fParticleGun->SetParticleEnergy(energy);
+  G4double kineticE = energy - mass;
+  // gAnaMan.SetBeamEnergy(energy);//全エネルギーを入れているが、正しくは運動エネルギーのみ
+  // fParticleGun->SetParticleEnergy(energy); //全エネルギーを入れているが、正しくは運動エネルギーのみ
+  gAnaMan.SetBeamEnergy(kineticE);
+  fParticleGun->SetParticleMomentum(p0);  //運動量を入れれば十分
+
 
   // -----------------------
   // Momentum direction

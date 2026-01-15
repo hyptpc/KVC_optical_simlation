@@ -67,6 +67,7 @@ void AnaManager::BeginOfRunAction(const G4Run*)
   m_tree->Branch("beam_pos_x", &m_beam_pos_x, "beam_pos_x/D");
   m_tree->Branch("beam_pos_y", &m_beam_pos_y, "beam_pos_y/D");
   m_tree->Branch("beam_pos_z", &m_beam_pos_z, "beam_pos_z/D");
+  m_tree->Branch("n_cer_gen", &n_cer_gen, "n_cer_gen/I"); //追加 チェレンコフ光発生数
   
   
   // -- MPPC -----
