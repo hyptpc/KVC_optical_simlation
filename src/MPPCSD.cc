@@ -11,6 +11,7 @@
 #include "TGraph.h"
 #include "TSpline.h"
 
+//_____________________________________________________________________________
 MPPCSD::MPPCSD(const G4String& name)
   : G4VSensitiveDetector(name),
     m_qe_spline(nullptr),
@@ -22,6 +23,7 @@ MPPCSD::MPPCSD(const G4String& name)
     InitializeQESpline();
 }
 
+//_____________________________________________________________________________
 MPPCSD::~MPPCSD() {
   delete m_qe_spline;
 }
@@ -33,7 +35,6 @@ void MPPCSD::Initialize(G4HCofThisEvent* HCTE)
 						     collectionName[0]);
   HCTE->AddHitsCollection(GetCollectionID(0), m_hits_collection);
 }
-
 
 //_____________________________________________________________________________
 G4bool MPPCSD::ProcessHits(G4Step *aStep, G4TouchableHistory *ROhist)
@@ -55,6 +56,8 @@ G4bool MPPCSD::ProcessHits(G4Step *aStep, G4TouchableHistory *ROhist)
   G4int detectFlag = 0;
   
   // -- kill track -----
+  // NOTE: Optical photons entering MPPC are absorbed here regardless of QE result.
+  // Photon detection is determined by detectFlag based on QE.
   aTrack->SetTrackStatus(fStopAndKill);
 
   if (m_range_min <= energy && energy <= m_range_max) {

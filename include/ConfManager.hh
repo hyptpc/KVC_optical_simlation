@@ -14,6 +14,7 @@ public:
 
     void Set(const std::string& key, const std::string& value);
     void LoadConfigFile(const std::string& filename);
+    bool Check(const std::string& key) const;
 
 private:
     ConfManager();

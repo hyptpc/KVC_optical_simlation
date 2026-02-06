@@ -51,7 +51,15 @@ int main(int argc, char** argv)
   auto runManager = new G4RunManager();
 
   std::random_device rd;
-  G4Random::setTheSeed(rd());
+  long seed;
+  if (gConfMan.Check("seed")) {
+      seed = gConfMan.GetInt("seed");
+      G4cout << "Random seed: " << seed << " (Fixed from config)" << G4endl;
+  } else {
+      seed = rd();
+      G4cout << "Random seed: " << seed << " (Randomized)" << G4endl;
+  }
+  G4Random::setTheSeed(seed);
 
   runManager->SetUserInitialization(new DetectorConstruction());
 

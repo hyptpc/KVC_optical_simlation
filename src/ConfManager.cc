@@ -3,17 +3,26 @@
 #include <sstream>
 #include <iostream>
 
+//_____________________________________________________________________________
 ConfManager& ConfManager::GetInstance() {
     static ConfManager instance;
     return instance;
 }
 
+//_____________________________________________________________________________
 ConfManager::ConfManager() {}
 
+//_____________________________________________________________________________
 void ConfManager::Set(const std::string& key, const std::string& value) {
     config_map[key] = value;
 }
 
+//_____________________________________________________________________________
+bool ConfManager::Check(const std::string& key) const {
+    return config_map.find(key) != config_map.end();
+}
+
+//_____________________________________________________________________________
 std::string ConfManager::Get(const std::string& key) const {
     auto it = config_map.find(key);
     if (it != config_map.end()) {
@@ -23,6 +32,7 @@ std::string ConfManager::Get(const std::string& key) const {
     return "";
 }
 
+//_____________________________________________________________________________
 double ConfManager::GetDouble(const std::string& key) const {
     auto it = config_map.find(key);
     if (it != config_map.end()) {
@@ -32,6 +42,7 @@ double ConfManager::GetDouble(const std::string& key) const {
     return 0.0;
 }
 
+//_____________________________________________________________________________
 int ConfManager::GetInt(const std::string& key) const {
     auto it = config_map.find(key);
     if (it != config_map.end()) {
@@ -41,6 +52,7 @@ int ConfManager::GetInt(const std::string& key) const {
     return 0;
 }
 
+//_____________________________________________________________________________
 void ConfManager::LoadConfigFile(const std::string& filename) {
     std::ifstream file(filename);
     if (!file) {

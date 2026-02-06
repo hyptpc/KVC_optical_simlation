@@ -13,6 +13,8 @@
 
 #include "ConfManager.hh"
 
+#define DEBUG 0
+
 namespace
 {
   using CLHEP::mm;
@@ -23,30 +25,33 @@ namespace
   auto& gConfMan = ConfManager::GetInstance();
 }
 
+//_____________________________________________________________________________
 PrimaryGeneratorAction::PrimaryGeneratorAction()
   : G4VUserPrimaryGeneratorAction()
 {
   fParticleGun = new G4ParticleGun(1);
 }
 
+//_____________________________________________________________________________
 PrimaryGeneratorAction::~PrimaryGeneratorAction()
 {
   delete fParticleGun;
 }
 
+//_____________________________________________________________________________
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 {
   GenerateBeam(anEvent);
   // GeneratePhoton(anEvent);
 }
 
-void PrimaryGeneratorAction::GenerateBeam(G4Event* anEvent)
+//_____________________________________________________________________________
+void PrimaryGeneratorAction::GenerateBeam(G4Event *anEvent)
 {
   static const G4String particle_name = gConfMan.Get("particle");
   static const auto particle = particleTable->FindParticle(particle_name);
   fParticleGun->SetParticleDefinition(particle);
 
-  
   // -----------------------
   // Momentum
   // -----------------------
@@ -55,15 +60,12 @@ void PrimaryGeneratorAction::GenerateBeam(G4Event* anEvent)
   // G4double momentum = G4RandGauss::shoot(p0, sigma_p);
   G4double momentum = p0;
 
-  
   G4double mass = particle->GetPDGMass();
-  G4double energy = std::sqrt(mass*mass + momentum*momentum);
+  G4double energy = std::sqrt(mass * mass + momentum * momentum);
   G4double kineticE = energy - mass;
-  // gAnaMan.SetBeamEnergy(energy);//全エネルギーを入れているが、正しくは運動エネルギーのみ
-  // fParticleGun->SetParticleEnergy(energy); //全エネルギーを入れているが、正しくは運動エネルギーのみ
-  gAnaMan.SetBeamEnergy(kineticE);
-  fParticleGun->SetParticleMomentum(p0);  //運動量を入れれば十分
 
+  gAnaMan.SetBeamEnergy(kineticE);
+  fParticleGun->SetParticleEnergy(kineticE); // Set kinetic energy
 
   // -----------------------
   // Momentum direction
@@ -73,14 +75,14 @@ void PrimaryGeneratorAction::GenerateBeam(G4Event* anEvent)
   // G4double phi = G4UniformRand() * 360.0 * deg;
   G4double theta = 0.;
   G4double phi = 0.;
-  
+
   G4double px = momentum * std::sin(theta) * std::cos(phi);
   G4double py = momentum * std::sin(theta) * std::sin(phi);
   G4double pz = momentum * std::cos(theta);
 
   G4ThreeVector direction(px, py, pz);
   gAnaMan.SetBeamMomentum(direction);
-  direction = direction.unit();  // normalize
+  direction = direction.unit(); // normalize
 
   // fParticleGun->SetParticleMomentum(momentum);
   fParticleGun->SetParticleMomentumDirection(direction);
@@ -88,10 +90,10 @@ void PrimaryGeneratorAction::GenerateBeam(G4Event* anEvent)
   // -----------------------
   // Position
   // -----------------------
-  G4double x0 = 0.0 * mm, sigmaX = 1.0 * mm;
-  G4double y0 = 0.0 * mm, sigmaY = 1.0 * mm;
+  // G4double x0 = 0.0 * mm, sigmaX = 1.0 * mm;
+  // G4double y0 = 0.0 * mm, sigmaY = 1.0 * mm;
   G4double z0 = -100.0 * mm;
-  
+
   // G4double x = G4RandGauss::shoot(x0, sigmaX);
   // G4double y = G4RandGauss::shoot(y0, sigmaY);
   G4double x = 0.0 * mm;
@@ -105,20 +107,22 @@ void PrimaryGeneratorAction::GenerateBeam(G4Event* anEvent)
   // -----------------------
   // Debug
   // -----------------------
-  // G4cout << "Particle: " << particle->GetParticleName() << G4endl
-  // 	 << " | Energy: " << energy / GeV << " GeV" << G4endl
-  // 	 << " | Momentum: " << momentum / GeV << " GeV/c" << G4endl
-  // 	 << " | Position: (" << x / mm << ", " << y / mm << ", " << z / mm << ") mm"  << G4endl
-  // 	 << " | Direction: (" << direction.x() << ", " << direction.y() << ", " << direction.z() << ")"
-  // 	 << G4endl;
+#if DEBUG
+  G4cout << "Particle: " << particle->GetParticleName() << G4endl
+  	 << " | Energy: " << energy / GeV << " GeV" << G4endl
+  	 << " | Momentum: " << momentum / GeV << " GeV/c" << G4endl
+  	 << " | Position: (" << x / mm << ", " << y / mm << ", " << z / mm << ") mm"  << G4endl
+  	 << " | Direction: (" << direction.x() << ", " << direction.y() << ", " << direction.z() << ")"
+  	 << G4endl;
+#endif
 
-  // -----------------------
-  // Gus
+  // Gun
   // -----------------------
   fParticleGun->GeneratePrimaryVertex(anEvent);
 }
 
 
+//_____________________________________________________________________________
 void PrimaryGeneratorAction::GeneratePhoton(G4Event* anEvent)
 {
   static const G4String particle_name = "opticalphoton";
@@ -183,16 +187,17 @@ void PrimaryGeneratorAction::GeneratePhoton(G4Event* anEvent)
   // -----------------------
   // Debug
   // -----------------------
+#if DEBUG
+  G4double momentum = energy;
   G4cout << "Particle: " << particle->GetParticleName() << G4endl
 	 << " | Energy: " << energy / CLHEP::eV << " eV" << G4endl
-  // 	 << " | Momentum: " << momentum / GeV << " GeV/c" << G4endl
+	 << " | Momentum: " << momentum / GeV << " GeV/c" << G4endl
 	 << " | Position: (" << x / mm << ", " << y / mm << ", " << z / mm << ") mm"  << G4endl
 	 << " | Direction: (" << direction.x() << ", " << direction.y() << ", " << direction.z() << ")"
 	 << G4endl;
+#endif
 
-  // -----------------------
-  // Gus
-  // -----------------------
+  // Gun
   fParticleGun->GeneratePrimaryVertex(anEvent);
 
 }

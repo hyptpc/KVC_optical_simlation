@@ -8,7 +8,7 @@ class EventAction : public G4UserEventAction {
 
     //追加
 private: 
-    G4int fNCerGen;  // チェレンコフ光生成数
+    G4int fNCherenkovGen;  // チェレンコフ光生成数
     //追加終
 
 public:
@@ -19,8 +19,8 @@ public:
     virtual void EndOfEventAction(const G4Event* event);
 
     //追加
-    void AddCerGen() { fNCerGen++; } //addCerGenは、fNCerGen++という操作
-    G4int GetCerGen() const { return fNCerGen; }
+    void AddCherenkovGen() { fNCherenkovGen++; } //addCherenkovGenは、fNCherenkovGen++という操作
+    G4int GetCherenkovGen() const { return fNCherenkovGen; }
     //追加終
     
 };
