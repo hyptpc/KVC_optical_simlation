@@ -11,6 +11,9 @@
 #include "G4LorentzVector.hh"
 #include "Randomize.hh"
 
+#include <TFile.h>
+#include <TTree.h>
+
 #include "ConfManager.hh"
 
 #define DEBUG 0
@@ -27,22 +30,54 @@ namespace
 
 //_____________________________________________________________________________
 PrimaryGeneratorAction::PrimaryGeneratorAction()
-  : G4VUserPrimaryGeneratorAction()
+  : G4VUserPrimaryGeneratorAction(),
+    fRootFile(nullptr), fTree(nullptr), fMaxEntries(0)
 {
   fParticleGun = new G4ParticleGun(1);
+
+  // Initialize ROOT beam if file is provided
+  G4String input_file = gConfMan.Get("input_beam_file");
+  if(!input_file.empty() && input_file != "none") {
+    fRootFile = new TFile(input_file, "READ");
+    if(fRootFile && fRootFile->IsOpen()) {
+      fTree = (TTree*)fRootFile->Get("tree"); // Expecting tree named "tree"
+      if(fTree) {
+        fMaxEntries = fTree->GetEntries();
+        fTree->SetBranchAddress("px", &fPx);
+        fTree->SetBranchAddress("py", &fPy);
+        fTree->SetBranchAddress("pz", &fPz);
+        fTree->SetBranchAddress("vx", &fVx);
+        fTree->SetBranchAddress("vy", &fVy);
+        fTree->SetBranchAddress("vz", &fVz);
+        G4cout << "PrimaryGeneratorAction: ROOT beam mode enabled (Random Sampling). File: " << input_file 
+               << " (Pool Size: " << fMaxEntries << ")" << G4endl;
+      } else {
+        G4Exception("PrimaryGeneratorAction::PrimaryGeneratorAction", "TreeNotFound", FatalException, "TTree 'tree' not found in ROOT beam file.");
+      }
+    } else {
+      G4Exception("PrimaryGeneratorAction::PrimaryGeneratorAction", "FileNotFound", FatalException, "Failed to open ROOT beam file.");
+    }
+  }
 }
 
 //_____________________________________________________________________________
 PrimaryGeneratorAction::~PrimaryGeneratorAction()
 {
   delete fParticleGun;
+  if(fRootFile) {
+    fRootFile->Close();
+    delete fRootFile;
+  }
 }
 
 //_____________________________________________________________________________
 void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 {
-  GenerateBeam(anEvent);
-  // GeneratePhoton(anEvent);
+  if(fTree) {
+    GenerateRootBeam(anEvent);
+  } else {
+    GenerateBeam(anEvent);
+  }
 }
 
 //_____________________________________________________________________________
@@ -200,4 +235,35 @@ void PrimaryGeneratorAction::GeneratePhoton(G4Event* anEvent)
   // Gun
   fParticleGun->GeneratePrimaryVertex(anEvent);
 
+}
+
+//_____________________________________________________________________________
+void PrimaryGeneratorAction::GenerateRootBeam(G4Event* anEvent)
+{
+  // Random sampling (Bootstrap) from the pool of realistic particles
+  G4int entry = G4RandFlat::shootInt(fMaxEntries);
+  fTree->GetEntry(entry);
+
+  static const G4String particle_name = gConfMan.Get("particle");
+  static const auto particle = particleTable->FindParticle(particle_name);
+  fParticleGun->SetParticleDefinition(particle);
+
+  G4ThreeVector direction(fPx, fPy, fPz);
+  G4double momentum = direction.mag() * GeV;
+  direction = direction.unit();
+
+  G4double mass = particle->GetPDGMass();
+  G4double energy = std::sqrt(mass * mass + momentum * momentum);
+  G4double kineticE = energy - mass;
+
+  gAnaMan.SetBeamEnergy(kineticE);
+  gAnaMan.SetBeamMomentum(direction * momentum);
+  fParticleGun->SetParticleEnergy(kineticE);
+  fParticleGun->SetParticleMomentumDirection(direction);
+
+  G4ThreeVector position(fVx * mm, fVy * mm, fVz * mm);
+  fParticleGun->SetParticlePosition(position);
+  gAnaMan.SetBeamPosition(position);
+
+  fParticleGun->GeneratePrimaryVertex(anEvent);
 }
