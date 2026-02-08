@@ -51,7 +51,6 @@ DetectorConstruction::Construct()
   ConstructElements();
   ConstructMaterials();
   AddOpticalProperties();
-
   
   auto world_solid = new G4Box("WorldSolid", 1.*m/2, 1.*m/2, 1.*m/2);
   m_world_lv = new G4LogicalVolume(world_solid, m_material_map["Air"],
@@ -117,7 +116,6 @@ DetectorConstruction::ConstructElements()
                                       A=47.867 * g/mole);
 
 }
-
 
 //_____________________________________________________________________________
 void
@@ -257,19 +255,17 @@ DetectorConstruction::ConstructMaterials()
   m_material_map[name]->AddElement(m_element_map["Hydrogen"], 8);
   m_material_map[name]->AddElement(m_element_map["Oxygen"], 4);
 
-  // EJ-510 White Reflective Paint (approximate)　あと調節
+  // EJ-510 White Reflective Paint (approximate)
   name = "EJ510";
-  // 密度：白色エポキシ塗料の代表値（文献・経験値）
-  m_material_map[name] = new G4Material(name, density = 1.2 * g/cm3, nel = 4);
-  // 化学組成（エポキシ + 白色顔料の近似）
-  // 厳密である必要はない（光学は surface が支配）
+  // Density: Representative value for white epoxy paint (literature/experience)
+  m_material_map[name] = new G4Material(name, density = 1.6 * g/cm3, nel = 4);
+  // Chemical composition (Epoxy + White pigment approximation)
+  // Strict accuracy is not required (optics is dominated by surface properties)
   m_material_map[name]->AddElement(m_element_map["Carbon"],   natoms = 15);
   m_material_map[name]->AddElement(m_element_map["Hydrogen"], natoms = 18);
   m_material_map[name]->AddElement(m_element_map["Oxygen"],   natoms = 4);
-  m_material_map[name]->AddElement(m_element_map["Titanium"], natoms = 1); // TiO2 顔料の代表
+  m_material_map[name]->AddElement(m_element_map["Titanium"], natoms = 1); // Representative of TiO2 pigment
 }
-
-
 
 //_____________________________________________________________________________
 void
@@ -295,7 +291,6 @@ DetectorConstruction::AddOpticalProperties()
   air_prop->AddProperty("RINDEX", KVC_Optical::E_Air, KVC_Optical::R_Air_RINDEX);
   m_material_map["Air"]->SetMaterialPropertiesTable(air_prop);
 
-  
   // +----------------------+
   // | Black sheet Property |
   // +----------------------+
@@ -304,13 +299,17 @@ DetectorConstruction::AddOpticalProperties()
   blacksheet_prop->AddProperty("ABSLENGTH", KVC_Optical::E_Blacksheet, KVC_Optical::R_Blacksheet_ABS);
   m_material_map["Blacksheet"]->SetMaterialPropertiesTable(blacksheet_prop);
 
-
-  // Teflon Property 
+  // +-----------------+
+  // | Teflon Property |
+  // +-----------------+
   auto teflon_prop = new G4MaterialPropertiesTable();
   teflon_prop->AddProperty("RINDEX", KVC_Optical::E_Teflon, KVC_Optical::R_Teflon_RINDEX);
   teflon_prop->AddProperty("ABSLENGTH", KVC_Optical::E_Teflon, KVC_Optical::R_Teflon_ABS);
   m_material_map["Teflon"]->SetMaterialPropertiesTable(teflon_prop);
 
+  // +----------------+
+  // | Mylar Property |
+  // +----------------+
   // Mylar surface is defined as dielectric_metal, so light does not penetrate. 
   // RINDEX and ABSLENGTH are defined here for potential future model updates.
   auto mylar_prop = new G4MaterialPropertiesTable();
@@ -318,29 +317,31 @@ DetectorConstruction::AddOpticalProperties()
   mylar_prop->AddProperty("ABSLENGTH", KVC_Optical::E_Mylar, KVC_Optical::R_Mylar_ABS);
   m_material_map["Mylar"]->SetMaterialPropertiesTable(mylar_prop);
 
+  // +-----------------+
+  // | EJ-510 Property |
+  // +-----------------+
   // EJ-510 Property: Using estimated values for reflectivity grid.
   auto ej510_prop = new G4MaterialPropertiesTable();
   ej510_prop->AddProperty("RINDEX", KVC_Optical::E_EJ510_Bulk, KVC_Optical::R_EJ510_RINDEX);
   ej510_prop->AddProperty("ABSLENGTH", KVC_Optical::E_EJ510_Bulk, KVC_Optical::R_EJ510_ABS);
-  // 既存 material（Teflon or 専用 Paint）に付与
   m_material_map["EJ510"]->SetMaterialPropertiesTable(ej510_prop);
-
   
-  // MPPC Property
+  // +---------------+
+  // | MPPC Property |
+  // +---------------+
   auto mppc_prop = new G4MaterialPropertiesTable();
   mppc_prop->AddProperty("RINDEX", KVC_Optical::E_MPPC, KVC_Optical::R_MPPC_RINDEX);
   // mppc_prop->AddProperty("ABSLENGTH", KVC_Optical::E_MPPC, KVC_Optical::R_MPPC_ABS);
   m_material_map["MPPC"]->SetMaterialPropertiesTable(mppc_prop);
-
   
-  // MPPC surface (Epoxi) Property
+  // +-------------------------------+
+  // | MPPC surface (Epoxi) Property |
+  // +-------------------------------+
   auto epoxi_prop = new G4MaterialPropertiesTable();
   epoxi_prop->AddProperty("RINDEX", KVC_Optical::E_Epoxi, KVC_Optical::R_Epoxi_RINDEX);
   epoxi_prop->AddProperty("ABSLENGTH", KVC_Optical::E_Epoxi, KVC_Optical::R_Epoxi_ABS);
-  m_material_map["Epoxi"]->SetMaterialPropertiesTable(epoxi_prop);
-  
+  m_material_map["Epoxi"]->SetMaterialPropertiesTable(epoxi_prop); 
 }
-
 
 //_____________________________________________________________________________
 void
@@ -355,7 +356,7 @@ DetectorConstruction::ConstructKVC()
   // Parameters from ConfManager 
   G4double quartz_thickness    = gConfMan.GetDouble("quartz_thickness") * mm;
   G4double air_layer_thickness = gConfMan.GetDouble("air_layer_thickness") * mm;
-  G4double teflon_thickness    = 1.0 * mm; // Standard thickness
+  G4double wrapper_thickness   = gConfMan.GetDouble("wrapper_thickness") * mm;
   G4int do_segmentize          = gConfMan.GetInt("do_segmentize");
   G4int wrap_type              = gConfMan.GetInt("wrap_type");
 
@@ -394,16 +395,16 @@ DetectorConstruction::ConstructKVC()
     G4Exception("DetectorConstruction::ConstructKVC", "InvalidWrapType", FatalException, "wrap_type must be 0,1,2");
   }
 
-  auto teflon_solid_full = new G4Box("TeflonSolidFull",
-			     kvc_size.x()/2.0 + air_layer_thickness + teflon_thickness,
+  auto wrap_solid_full = new G4Box("WrapSolidFull",
+			     kvc_size.x()/2.0 + air_layer_thickness + wrapper_thickness,
 			     kvc_size.y()/2.0,
-			     kvc_size.z()/2.0 + air_layer_thickness + teflon_thickness);
-  auto teflon_solid_cut  = new G4Box("TeflonSolidCut",
+			     kvc_size.z()/2.0 + air_layer_thickness + wrapper_thickness);
+  auto wrap_solid_cut  = new G4Box("WrapSolidCut",
 			     kvc_size.x()/2.0 + air_layer_thickness,
 			     kvc_size.y()/2.0,
 			     kvc_size.z()/2.0 + air_layer_thickness);
   
-  G4SubtractionSolid* wrap_solid = new G4SubtractionSolid("WrapSolid", teflon_solid_full, teflon_solid_cut, nullptr, origin_pos);
+  G4SubtractionSolid* wrap_solid = new G4SubtractionSolid("WrapSolid", wrap_solid_full, wrap_solid_cut, nullptr, origin_pos);
   auto wrap_lv = new G4LogicalVolume(wrap_solid, wrap_material, "WrapLV");
   m_wrap_pv = new G4PVPlacement(nullptr, origin_pos, wrap_lv, "WrapPV", m_mother_lv, false, 0, m_check_overlaps); 
   wrap_lv->SetVisAttributes(G4Colour::White());
@@ -447,19 +448,18 @@ DetectorConstruction::ConstructKVC()
 
   // Blacksheet
   auto blacksheet_solid_full = new G4Box("BlacksheetSolidFull",
-                                         kvc_size.x()/2.0 + air_layer_thickness + teflon_thickness + 4.0*mm,
+                                         kvc_size.x()/2.0 + air_layer_thickness + wrapper_thickness + 4.0*mm,
                                          kvc_size.y()/2.0 + 5.0*mm,
-                                         kvc_size.z()/2.0 + air_layer_thickness + teflon_thickness + 4.0*mm);
+                                         kvc_size.z()/2.0 + air_layer_thickness + wrapper_thickness + 4.0*mm);
   auto blacksheet_solid_cut  = new G4Box("BlacksheetSolidCut",
-                                         kvc_size.x()/2.0 + air_layer_thickness + teflon_thickness + 1.0*mm,
+                                         kvc_size.x()/2.0 + air_layer_thickness + wrapper_thickness + 1.0*mm,
                                          kvc_size.y()/2.0 + 2.0*mm,
-                                         kvc_size.z()/2.0 + air_layer_thickness + teflon_thickness + 1.0*mm);
+                                         kvc_size.z()/2.0 + air_layer_thickness + wrapper_thickness + 1.0*mm);
   auto blacksheet_solid = new G4SubtractionSolid("BlacksheetSolid", blacksheet_solid_full, blacksheet_solid_cut, nullptr, origin_pos);
   m_blacksheet_lv = new G4LogicalVolume(blacksheet_solid, m_material_map["Blacksheet"], "BlacksheetLV");
   new G4PVPlacement(nullptr, origin_pos, m_blacksheet_lv, "BlacksheetPV", m_mother_lv, false, 0, m_check_overlaps);
   m_blacksheet_lv->SetVisAttributes(G4Colour::Black());
 }
-
 
 //_____________________________________________________________________________
 void
@@ -470,13 +470,20 @@ DetectorConstruction::AddSurfaceProperties()
 
   G4int wrap_type              = gConfMan.GetInt("wrap_type");
   G4double air_layer_thickness = gConfMan.GetDouble("air_layer_thickness") * mm;
+  G4int quartz_finish          = gConfMan.GetInt("quartz_finish");  // 0:polished, 1:ground
+  G4double sigma_alpha         = gConfMan.GetDouble("sigma_alpha");
 
   // Quartz Surface 
   auto surface_quartz = new G4OpticalSurface("surface_quartz");
   surface_quartz->SetModel(unified);
   surface_quartz->SetType(dielectric_dielectric);
-  surface_quartz->SetFinish(ground);
-  surface_quartz->SetSigmaAlpha(gConfMan.GetDouble("sigma_alpha"));
+  if(quartz_finish == 1){
+    surface_quartz->SetFinish(ground);
+    surface_quartz->SetSigmaAlpha(sigma_alpha);
+  } else {
+    surface_quartz->SetFinish(polished);
+    // For polished, sigma_alpha is ignored
+  }
 
   auto quartz_prop = new G4MaterialPropertiesTable();
   std::vector<G4double> e_surface = KVC_Optical::E_Unified_Surface;
@@ -488,49 +495,58 @@ DetectorConstruction::AddSurfaceProperties()
   // Wrapper Surface
   G4OpticalSurface* wrap_surface = nullptr;
 
-  // -- Teflon --
-  auto surface_teflon = new G4OpticalSurface("surface_teflon");
-  surface_teflon->SetModel(unified);
-  surface_teflon->SetType(dielectric_dielectric);
-  surface_teflon->SetFinish(groundfrontpainted); 
+  // Wrappers (Teflon, Mylar, EJ-510)
+  // Shared logic for wrapper configuration to avoid code duplication and confusion
+  // Specific material properties are selected based on wrap_type
+
+  G4OpticalSurface* surface_wrapper = new G4OpticalSurface("surface_wrapper");
+  surface_wrapper->SetModel(unified);
+
+  auto wrapper_prop = new G4MaterialPropertiesTable();
+
+  // Common parameters that apply to all wrappers (or at least the ones using unified model)
+  // These keys are "wrapper_..." to indicate they are tunable parameters for whatever wrapper is selected.
+  // Note: Mylar might ignore some of these due to being dielectric_metal / polished.
   
-  G4double teflon_sigma_alpha = 0.2; // Recommended default
-  if(gConfMan.GetDouble("teflon_sigma_alpha") > 0) teflon_sigma_alpha = gConfMan.GetDouble("teflon_sigma_alpha");
-  surface_teflon->SetSigmaAlpha(teflon_sigma_alpha);
+  if (wrap_type == 0) { // Teflon
+      surface_wrapper->SetType(dielectric_dielectric);
+      surface_wrapper->SetFinish(groundfrontpainted);
+      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("wrapper_sigma_alpha")); // Tunable roughness
 
-  auto teflon_prop = new G4MaterialPropertiesTable();
-  teflon_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_PTFE_Thin);
-  teflon_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("teflon_specularLobe"), true);
-  teflon_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("teflon_specularSpike"), true);
-  teflon_prop->AddConstProperty("BACKSCATTERCONSTANT",  gConfMan.GetDouble("teflon_backScatter"), true);
-  surface_teflon->SetMaterialPropertiesTable(teflon_prop);
+      wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_PTFE_Thin);
+      // Specular/Backscatter constants are relevant for groundfrontpainted
+      wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("wrapper_specularLobe"), true);
+      wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("wrapper_specularSpike"), true);
+      wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("wrapper_backScatter"), true);
 
-  // -- Mylar --
-  auto surface_mylar = new G4OpticalSurface("surface_mylar");
-  surface_mylar->SetModel(unified);
-  surface_mylar->SetType(dielectric_metal);
-  surface_mylar->SetFinish(polished);
-  auto mylar_prop = new G4MaterialPropertiesTable();
-  mylar_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_AlMylar);
-  surface_mylar->SetMaterialPropertiesTable(mylar_prop);
+  } else if (wrap_type == 1) { // Mylar
+      surface_wrapper->SetType(dielectric_metal);
+      surface_wrapper->SetFinish(polished);
+      // Polished metal usually doesn't use sigma alpha or lobe/spike constants in the same way
+      wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_AlMylar);
 
-  // -- EJ-510 --
-  auto surface_ej510 = new G4OpticalSurface("surface_ej510");
-  surface_ej510->SetModel(unified);
-  surface_ej510->SetType(dielectric_dielectric);
-  surface_ej510->SetFinish(groundfrontpainted);
-  surface_ej510->SetSigmaAlpha(0.1);
-  auto ej510_prop = new G4MaterialPropertiesTable();
-  ej510_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_EJ510);
-  surface_ej510->SetMaterialPropertiesTable(ej510_prop);
+  } else if (wrap_type == 2) { // EJ-510
+      surface_wrapper->SetType(dielectric_dielectric);
+      surface_wrapper->SetFinish(groundfrontpainted);
+      // Use configured roughness or a default specific to paint if needed.
+      // For now, let's use the same wrapper_sigma_alpha to allow tuning.
+      // If independent tuning is needed, we can add "ej510_sigma_alpha" key.
+      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("wrapper_sigma_alpha")); 
 
-  if      (wrap_type == 0) wrap_surface = surface_teflon;
-  else if (wrap_type == 1) wrap_surface = surface_mylar;
-  else if (wrap_type == 2) wrap_surface = surface_ej510;
-  else {
-    // Should have been caught in ConstructKVC, but for safety:
-    G4Exception("DetectorConstruction::AddSurfaceProperties", "InvalidWrapType", FatalException, "wrap_type must be 0,1,2");
+      wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_EJ510);
+      // Reuse wrapper constants for paint model as well
+      wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("wrapper_specularLobe"), true);
+      wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("wrapper_specularSpike"), true);
+      wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("wrapper_backScatter"), true);
+
+  } else {
+       G4Exception("DetectorConstruction::AddSurfaceProperties", "InvalidWrapType", FatalException, "wrap_type must be 0,1,2");
   }
+
+  surface_wrapper->SetMaterialPropertiesTable(wrapper_prop);
+
+  // Assign the created wrapper surface
+  wrap_surface = surface_wrapper;
 
   // Border Surfaces
   if (m_kvc_pv && m_mother_pv && m_wrap_pv) {
@@ -552,8 +568,6 @@ DetectorConstruction::AddSurfaceProperties()
   surface_bs->SetMaterialPropertiesTable(bs_prop);
   if (m_blacksheet_lv) new G4LogicalSkinSurface("BlackSheetSurface", m_blacksheet_lv, surface_bs);
 }
-
-
 
 //_____________________________________________________________________________
 void DetectorConstruction::DumpMaterialProperties(G4Material* mat)
