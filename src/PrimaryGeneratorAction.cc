@@ -261,7 +261,13 @@ void PrimaryGeneratorAction::GenerateRootBeam(G4Event* anEvent)
   fParticleGun->SetParticleEnergy(kineticE);
   fParticleGun->SetParticleMomentumDirection(direction);
 
-  G4ThreeVector position(fVx * mm, fVy * mm, fVz * mm);
+  G4double thickness = gConfMan.GetDouble("quartz_thickness") * mm;
+  G4double z_surf = -thickness / 2.0;
+
+  // ROOT file Z is ~ -10 mm (relative to surface). 
+  // We align this to Geant4 surface position.
+  G4ThreeVector position(fVx * mm, fVy * mm, z_surf + fVz * mm);
+  
   fParticleGun->SetParticlePosition(position);
   gAnaMan.SetBeamPosition(position);
 
