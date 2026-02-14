@@ -249,7 +249,7 @@ void PrimaryGeneratorAction::GenerateRootBeam(G4Event* anEvent)
   fParticleGun->SetParticleDefinition(particle);
 
   G4ThreeVector direction(fPx, fPy, fPz);
-  G4double momentum = direction.mag() * GeV;
+  G4double momentum = direction.mag() * MeV; // Fixed: Input is MeV/c
   direction = direction.unit();
 
   G4double mass = particle->GetPDGMass();

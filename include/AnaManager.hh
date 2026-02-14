@@ -40,6 +40,7 @@ private:
   G4double m_beam_pos_z;  
   G4int n_cherenkov_gen; //チェレンコフ光発生数
   G4int m_npe;           //検出フォトエレクトロン数
+  G4int m_nTrapped_Air;  // 空気層（およびWrapper）で消失した数
 
   // std::vector<TVector3> m_pos;
   std::vector<G4double> m_pos_x;
@@ -68,6 +69,8 @@ public:
   G4String GetOutputRootfilePath();
   //void FillTree(); //追加
   void SetCherenkovGen(Int_t val) { n_cherenkov_gen = val; } //追加
+  
+  void IncrementTrappedAir() { m_nTrapped_Air++; }
 
 };
 

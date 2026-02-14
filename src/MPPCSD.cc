@@ -1,4 +1,6 @@
 #include "MPPCSD.hh"
+#include "ConfManager.hh"
+#include "KVC_OpticalProperties.hh"
 
 #include "G4SDManager.hh"
 #include "G4Step.hh"
@@ -16,11 +18,15 @@ MPPCSD::MPPCSD(const G4String& name)
   : G4VSensitiveDetector(name),
     m_qe_spline(nullptr),
     m_range_min(1. * CLHEP::eV),
-    m_range_max(7. * CLHEP::eV)
+    m_range_max(7. * CLHEP::eV),
+    m_qe_scale(1.0)
 {
     collectionName.insert("MppcCollection");
 
     InitializeQESpline();
+
+    m_qe_scale = ConfManager::GetInstance().GetDouble("qe_scale");
+    if (m_qe_scale <= 0.0) m_qe_scale = 1.0;
 }
 
 //_____________________________________________________________________________
@@ -60,8 +66,11 @@ G4bool MPPCSD::ProcessHits(G4Step *aStep, G4TouchableHistory *ROhist)
   // Photon detection is determined by detectFlag based on QE.
   aTrack->SetTrackStatus(fStopAndKill);
 
+#ifndef USE_SURFACE_PDE
   if (m_range_min <= energy && energy <= m_range_max) {
-    G4double qe_value = m_qe_spline->Eval(energy);
+    G4double qe_value = m_qe_spline->Eval(energy) * m_qe_scale;
+    if (qe_value > 1.0) qe_value = 1.0;
+
     G4double random_value = G4UniformRand();
     if (random_value <= qe_value) {
       detectFlag = 1;
@@ -81,6 +90,7 @@ G4bool MPPCSD::ProcessHits(G4Step *aStep, G4TouchableHistory *ROhist)
   aHit->SetDetectFlag(detectFlag);
   
   m_hits_collection->insert(aHit);
+#endif
 
   
   return true;

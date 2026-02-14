@@ -13,6 +13,7 @@
 
 #include "G4EventManager.hh"
 #include "EventAction.hh"
+#include "KVC_TrackInfo.hh"
 
 #include "G4SystemOfUnits.hh"      
 #include "G4PhysicalConstants.hh"  
@@ -59,9 +60,12 @@ StackingAction::ClassifyNewTrack(const G4Track * aTrack)
     const G4double E = aTrack->GetKineticEnergy();
 
     if(in_quartz && E >= Emin && E < Emax ){
-    auto eventAction = static_cast<EventAction*>(
-    G4EventManager::GetEventManager()->GetUserEventAction());
-    if (eventAction) eventAction->AddCherenkovGen(); // Increment Cherenkov count
+      auto eventAction = static_cast<EventAction*>(
+      G4EventManager::GetEventManager()->GetUserEventAction());
+      if (eventAction) eventAction->AddCherenkovGen(); // Increment Cherenkov count
+      
+      // Tag this track as "From Quartz"
+      aTrack->SetUserInformation(new KVC_TrackInfo(true));
     }
     
   }

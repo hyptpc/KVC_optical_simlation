@@ -7,6 +7,9 @@
 #include "G4Element.hh"
 #include "G4Material.hh"
 
+#include <vector>
+#include "G4VPhysicalVolume.hh"
+
 class DetectorMessenger;
 
 class DetectorConstruction : public G4VUserDetectorConstruction
@@ -24,6 +27,7 @@ private:
   G4VPhysicalVolume*              m_mother_pv;
   G4VPhysicalVolume*              m_kvc_pv;
   G4VPhysicalVolume*              m_wrap_pv;
+  std::vector<G4VPhysicalVolume*> m_mppc_pvs;
   G4bool                          m_check_overlaps;
 
 private:

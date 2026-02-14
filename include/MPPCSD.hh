@@ -24,6 +24,7 @@ private:
   TSpline3* m_qe_spline;
   G4double m_range_min;
   G4double m_range_max;
+  G4double m_qe_scale;
 
   void InitializeQESpline();
 };
