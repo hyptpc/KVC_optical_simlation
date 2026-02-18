@@ -41,7 +41,7 @@ if(GEANT4_USE_GDML)
   file(GLOB detectors ${PROJECT_SOURCE_DIR}/gdml/*.gdml)
 endif()
 
-file(GLOB macros ${PROJECT_SOURCE_DIR}/*.mac)
+# file(GLOB macros ${PROJECT_SOURCE_DIR}/*.mac)
 file(GLOB inputs ${PROJECT_SOURCE_DIR}/*.in)
 
 #-------------------------------------------------------------------------------
@@ -50,23 +50,11 @@ add_executable(KVCOpticalSim main.cc ${sources} ${headers})
 target_link_libraries(KVCOpticalSim ${Geant4_LIBRARIES} ${ROOT_LIBRARIES})
 
 #-------------------------------------------------------------------------------
-# Copy necessary scripts to the build directory
-set(KVCOpticalSim_SCRIPTS
-    test.mac
-    gui.mac
-    vis.mac
-)
-
-foreach(_script ${KVCOpticalSim_SCRIPTS})
-  configure_file(${PROJECT_SOURCE_DIR}/${_script} ${PROJECT_BINARY_DIR}/${_script} COPYONLY)
-endforeach()
-
-#-------------------------------------------------------------------------------
 # Install the executable and scripts
 install(TARGETS KVCOpticalSim DESTINATION bin)
 
 if (GEANT4_USE_GDML)
-  install(FILES ${detectors} ${macros} ${inputs} DESTINATION bin)
+  install(FILES ${detectors} ${inputs} DESTINATION bin)
 else()
-  install(FILES ${macros} ${inputs} DESTINATION bin)
+  install(FILES ${inputs} DESTINATION bin)
 endif()
