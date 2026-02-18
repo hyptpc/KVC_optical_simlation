@@ -526,12 +526,17 @@ DetectorConstruction::AddSurfaceProperties()
       surface_wrapper->SetFinish(groundfrontpainted);
       surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha")); 
 
-      wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_PTFE_Thin);
+      G4double r_scale = gConfMan.GetDouble("teflon_reflectivity_scale");
+      std::vector<G4double> r_ptfe = KVC_Optical::R_PTFE_Thin;
+      for(auto& r : r_ptfe) r *= r_scale;
+      
+      wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, r_ptfe);
       wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("teflon_specularLobe"), true);
       wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("teflon_specularSpike"), true);
       wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("teflon_backScatter"), true);
+      wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",    gConfMan.GetDouble("teflon_diffuseLobe"), true);
 
-  } else if (wrap_type == 1) { // Mylar
+  } else if (wrap_type == 1) { // Mylar (Seg 1)
       surface_wrapper->SetType(dielectric_metal);
       surface_wrapper->SetFinish(polished);
       wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_AlMylar);
@@ -545,6 +550,7 @@ DetectorConstruction::AddSurfaceProperties()
       wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("ej510_specularLobe"), true);
       wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("ej510_specularSpike"), true);
       wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("ej510_backScatter"), true);
+      wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",    gConfMan.GetDouble("ej510_diffuseLobe"), true);
 
   } else {
        G4Exception("DetectorConstruction::AddSurfaceProperties", "InvalidWrapType", FatalException, "wrap_type must be 0,1,2");
