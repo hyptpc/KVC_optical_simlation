@@ -2,7 +2,7 @@
 #define KVC_OpticalProperties_h 1
 
 // Toggle this macro to switch between Method A (Surface Property) and Method B (Manual SD Calculation)
-#define USE_SURFACE_PDE 1
+// #define USE_SURFACE_PDE 1
 
 #include "globals.hh"
 #include <vector>
@@ -445,7 +445,7 @@ namespace KVC_Optical {
   // Teflon Bulk Properties (for Absorption/Refraction, distinct from Surface Reflectivity)
   static const std::vector<G4double> E_Teflon = { 1.3 * eV, 7.0 * eV };
   static const std::vector<G4double> R_Teflon_RINDEX = { 1.35, 1.35 };
-  static const std::vector<G4double> R_Teflon_ABS = { 1.0e-11 * CLHEP::m, 1.0e-11 * CLHEP::m };
+  static std::vector<G4double> R_Teflon_ABS = { 1.0e-11 * CLHEP::m, 1.0e-11 * CLHEP::m };
 
   // Unified Surface Property Energy Range
   static const std::vector<G4double> E_Unified_Surface = { 1.3 * eV, 7.0 * eV };
@@ -465,9 +465,9 @@ namespace KVC_Optical {
   static const std::vector<G4double> R_MPPC_RINDEX = { 1.5, 1.5 };
   static const std::vector<G4double> R_MPPC_ABS = { 1.0 * CLHEP::cm, 1.0 * CLHEP::cm };
 
-  // Epoxi Properties (Surface of MPPC)
+  // Epoxi Properties (Surface of MPPC, S13360-6050VE uses Epoxy Resin n~1.55, Optical Grease used is n~1.46)
   static const std::vector<G4double> E_Epoxi = { 1.3 * eV, 7.0 * eV };
-  static const std::vector<G4double> R_Epoxi_RINDEX = { 1.5, 1.5 };
+  static const std::vector<G4double> R_Epoxi_RINDEX = { 1.55, 1.55 };
   static const std::vector<G4double> R_Epoxi_ABS = { 1.0 * CLHEP::cm, 1.0 * CLHEP::cm };
 
   // --------------------------------------------------------------------

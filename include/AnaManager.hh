@@ -42,7 +42,7 @@ private:
   G4int m_npe;           //検出フォトエレクトロン数
   G4int m_nTrapped_Air;  // 空気層（およびWrapper）で消失した数
 
-  // std::vector<TVector3> m_pos;
+  std::vector<G4double> m_gen_wave_length; // 生成されたチェレンコフ光の波長
   std::vector<G4double> m_pos_x;
   std::vector<G4double> m_pos_y;
   std::vector<G4double> m_pos_z;
@@ -71,6 +71,7 @@ public:
   void SetCherenkovGen(Int_t val) { n_cherenkov_gen = val; } //追加
   
   void IncrementTrappedAir() { m_nTrapped_Air++; }
+  void AddGenWavelength(G4double wl) { m_gen_wave_length.push_back(wl); }
 
 };
 

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <stdexcept>
 
 //_____________________________________________________________________________
 ConfManager& ConfManager::GetInstance() {
@@ -35,21 +36,31 @@ std::string ConfManager::Get(const std::string& key) const {
 //_____________________________________________________________________________
 double ConfManager::GetDouble(const std::string& key) const {
     auto it = config_map.find(key);
-    if (it != config_map.end()) {
-        return std::stod(it->second);
+    if (it == config_map.end()) {
+        std::cerr << "Warning: Config key '" << key << "' not found! Using 0.0" << std::endl;
+        return 0.0;
     }
-    std::cerr << "Warning: Config key '" << key << "' not found!" << std::endl;
-    return 0.0;
+    try {
+        return std::stod(it->second);
+    } catch (const std::exception& e) {
+        std::cerr << "Error: Config key '" << key << "' has invalid double value '" << it->second << "': " << e.what() << std::endl;
+        throw;
+    }
 }
 
 //_____________________________________________________________________________
 int ConfManager::GetInt(const std::string& key) const {
     auto it = config_map.find(key);
-    if (it != config_map.end()) {
-        return std::stoi(it->second);
+    if (it == config_map.end()) {
+        std::cerr << "Warning: Config key '" << key << "' not found! Using 0" << std::endl;
+        return 0;
     }
-    std::cerr << "Warning: Config key '" << key << "' not found!" << std::endl;
-    return 0;
+    try {
+        return std::stoi(it->second);
+    } catch (const std::exception& e) {
+        std::cerr << "Error: Config key '" << key << "' has invalid int value '" << it->second << "': " << e.what() << std::endl;
+        throw;
+    }
 }
 
 //_____________________________________________________________________________

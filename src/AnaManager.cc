@@ -85,7 +85,6 @@ void AnaManager::BeginOfRunAction(const G4Run*)
   
   // MPPC info
   m_tree->Branch("nhit_mppc",&m_nhit_mppc,"nhit_mppc/I");
-  // m_tree->Branch("pos", &m_pos);
   m_tree->Branch("pos_x", &m_pos_x);
   m_tree->Branch("pos_y", &m_pos_y);
   m_tree->Branch("pos_z", &m_pos_z);
@@ -95,6 +94,7 @@ void AnaManager::BeginOfRunAction(const G4Run*)
   m_tree->Branch("particle_id", &m_particle_id);
   m_tree->Branch("seg", &m_seg);
   m_tree->Branch("detect_flag", &m_detect_flag);
+  m_tree->Branch("gen_wave_length", &m_gen_wave_length);
 }
 
 //_____________________________________________________________________________
@@ -171,7 +171,7 @@ void AnaManager::EndOfRunAction(const G4Run* aRun) {
 //_____________________________________________________________________________
 void AnaManager::ResetContainer()
 {
-  // m_pos.clear();
+  m_gen_wave_length.clear();
   m_pos_x.clear();
   m_pos_y.clear();
   m_pos_z.clear();

@@ -132,7 +132,7 @@ void PrimaryGeneratorAction::GenerateBeam(G4Event *anEvent)
   // G4double x = G4RandGauss::shoot(x0, sigmaX);
   // G4double y = G4RandGauss::shoot(y0, sigmaY);
   G4double x = 0.0 * mm;
-  G4double y = 0.0 * mm;
+  G4double y = gConfMan.GetDouble("beam_y_offset") * mm;
   G4double z = z0;
 
   G4ThreeVector position(x, y, z);
@@ -266,7 +266,8 @@ void PrimaryGeneratorAction::GenerateRootBeam(G4Event* anEvent)
 
   // ROOT file Z is ~ -10 mm (relative to surface). 
   // We align this to Geant4 surface position.
-  G4ThreeVector position(fVx * mm, fVy * mm, z_surf + fVz * mm);
+  G4double y_offset = gConfMan.GetDouble("beam_y_offset") * mm;
+  G4ThreeVector position(fVx * mm, fVy * mm + y_offset, z_surf + fVz * mm);
   
   fParticleGun->SetParticlePosition(position);
   gAnaMan.SetBeamPosition(position);

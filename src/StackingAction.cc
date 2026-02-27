@@ -53,11 +53,14 @@ StackingAction::ClassifyNewTrack(const G4Track * aTrack)
 
 	  const G4VPhysicalVolume* volume = aTrack->GetVolume(); // Current volume of the photon
     const bool in_quartz = (volume && volume->GetName() == "KvcPV");
-    if (in_quartz) ++fCerenkovQuartz;
+    const G4double E = aTrack->GetKineticEnergy();
+    if (in_quartz) {
+      ++fCerenkovQuartz;
+      gAnaMan.AddGenWavelength((CLHEP::h_Planck * CLHEP::c_light / E) / CLHEP::nm);
+    }
 
     constexpr G4double Emin = 1.37 * eV;
     constexpr G4double Emax = 3.87 * eV;
-    const G4double E = aTrack->GetKineticEnergy();
 
     if(in_quartz && E >= Emin && E < Emax ){
       auto eventAction = static_cast<EventAction*>(
