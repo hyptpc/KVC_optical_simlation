@@ -101,6 +101,7 @@ void AnaManager::BeginOfRunAction(const G4Run*)
 void AnaManager::BeginOfEventAction(const G4Event* anEvent)
 {
   m_nTrapped_Air = 0;
+  m_gen_wave_length.clear();
 }
 
 //_____________________________________________________________________________
@@ -171,7 +172,6 @@ void AnaManager::EndOfRunAction(const G4Run* aRun) {
 //_____________________________________________________________________________
 void AnaManager::ResetContainer()
 {
-  m_gen_wave_length.clear();
   m_pos_x.clear();
   m_pos_y.clear();
   m_pos_z.clear();
