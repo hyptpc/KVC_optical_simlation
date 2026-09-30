@@ -38,6 +38,7 @@ PrimaryGeneratorAction::PrimaryGeneratorAction()
   // Initialize ROOT beam if file is provided
   G4String input_file = gConfMan.Get("input_beam_file");
   if(!input_file.empty() && input_file != "none") {
+    input_file = gConfMan.GetPath("input_beam_file"); // Relative path is resolved against the conf file directory
     fRootFile = new TFile(input_file, "READ");
     if(fRootFile && fRootFile->IsOpen()) {
       fTree = (TTree*)fRootFile->Get("tree"); // Expecting tree named "tree"

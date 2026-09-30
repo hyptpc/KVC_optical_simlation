@@ -64,12 +64,22 @@ int ConfManager::GetInt(const std::string& key) const {
 }
 
 //_____________________________________________________________________________
+std::string ConfManager::GetPath(const std::string& key) const {
+    std::string path = Get(key);
+    if (path.empty() || path[0] == '/') return path;
+    return conf_dir + path;
+}
+
+//_____________________________________________________________________________
 void ConfManager::LoadConfigFile(const std::string& filename) {
     std::ifstream file(filename);
     if (!file) {
         std::cerr << "Error: Cannot open config file " << filename << std::endl;
         return;
     }
+
+    const auto slash = filename.find_last_of('/');
+    conf_dir = (slash == std::string::npos) ? "" : filename.substr(0, slash + 1);
 
     std::string line;
     while (std::getline(file, line)) {
