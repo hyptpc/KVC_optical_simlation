@@ -54,6 +54,16 @@ StackingAction::ClassifyNewTrack(const G4Track * aTrack)
 	      ++fCerenkovAll;
 
 	      const G4VPhysicalVolume* volume = aTrack->GetVolume(); // Current volume of the photon
+
+#if DEBUG
+        if (volume) {
+          G4cout << "Cerenkov photon generated in volume: "
+                 << volume->GetName() << G4endl;
+        } else {
+          G4cout << "Cerenkov photon generated in an unknown volume" << G4endl;
+        }
+#endif
+
         const bool in_quartz = (volume && volume->GetName() == "KvcPV");
         const G4double E = aTrack->GetKineticEnergy();
         if (in_quartz) {
@@ -74,16 +84,6 @@ StackingAction::ClassifyNewTrack(const G4Track * aTrack)
         }
     
       }
-
-#if DEBUG
-	    if (volume) {
-	      G4cout << "Cerenkov photon generated in volume: " 
-		         << volume->GetName() << G4endl;
-	    } else {
-	      G4cout << "Cerenkov photon generated in an unknown volume" << G4endl;
-	    }
-#endif
-        
     }
   }
 
