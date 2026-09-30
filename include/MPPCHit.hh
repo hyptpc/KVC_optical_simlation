@@ -3,7 +3,6 @@
 
 #include "G4VHit.hh"
 #include "G4ThreeVector.hh"
-#include "G4Allocator.hh"
 #include "G4THitsCollection.hh"
 
 class MPPCHit : public G4VHit {
@@ -61,8 +60,5 @@ private:
   G4int fEventID;                // Event ID
   G4int fDetectFlag;             // detect flag
 };
-
-// Memory allocator for MPPCHit objects
-extern G4Allocator<MPPCHit> MPPCHitAllocator;
 
 #endif

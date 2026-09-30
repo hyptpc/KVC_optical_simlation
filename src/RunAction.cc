@@ -1,16 +1,8 @@
 #include "RunAction.hh"
 #include "AnaManager.hh"
 
-#include <fstream>
-
 #include <G4Run.hh>
-#include <G4RunManager.hh>
-#include <G4StateManager.hh>
 #include <G4Timer.hh>
-#include <G4UIterminal.hh>
-#include <G4UItcsh.hh>
-
-#include "AnaManager.hh"
 
 namespace
 {

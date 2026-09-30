@@ -18,9 +18,6 @@
 
 #include "G4ThreeVector.hh"
 
-extern int gCerenkovCounter;
-extern double decay_check;
-
 #define DEBUG 0
 
 //_____________________________________________________________________________

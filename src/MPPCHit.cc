@@ -4,8 +4,6 @@
 #include "G4UnitsTable.hh"
 #include "G4ios.hh"
 
-G4Allocator<MPPCHit> MPPCHitAllocator;
-
 MPPCHit::MPPCHit()
     : fPosition(G4ThreeVector()),
       fWorldPosition(G4ThreeVector()),

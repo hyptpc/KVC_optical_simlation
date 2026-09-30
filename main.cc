@@ -1,19 +1,15 @@
 #include "DetectorConstruction.hh"
 #include "ActionInitialization.hh"
 #include "AnaManager.hh"
-#include "RunAction.hh"
 #include "ConfManager.hh"
     
-#include "FTFP_BERT.hh"
 #include "QGSP_BERT.hh"
 #include "G4EmStandardPhysics_option4.hh"
 #include "G4OpticalPhysics.hh"
 #include "G4RunManager.hh"
-#include "G4Types.hh"
 #include "G4UIExecutive.hh"
 #include "G4UImanager.hh"
 #include "G4VisExecutive.hh"
-#include "G4Cerenkov.hh"
 #include "G4DecayPhysics.hh"
 
 #include <random>
