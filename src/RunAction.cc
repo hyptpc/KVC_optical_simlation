@@ -35,7 +35,6 @@ RunAction::BeginOfRunAction(const G4Run* aRun)
 {
   G4cout << "   Run# = " << aRun->GetRunID() << G4endl;
   gAnaMan.BeginOfRunAction(aRun);
-  G4Random::setTheSeed(std::time(nullptr));
   timer.Start();
 }
 
