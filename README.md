@@ -52,7 +52,7 @@ G4Macro is an optional argument.
   are executed. Run it from the top directory so that these macros are found.
 
 ```shell
-./bin/KVCOpticalSim conf/vis_seg2.conf foo.root
+./bin/KVCOpticalSim conf/default.conf foo.root
 ```
 
 
@@ -74,8 +74,6 @@ Example conf files are placed in `conf/`:
 | `default.conf`                | Default setting (K beam from a ROOT beam file)      |
 | `k_setup.conf`, `pi_setup.conf` | K / pi beam from the particle gun (no beam file)  |
 | `pbar_seg*.conf`              | Anti-proton beam for each segment                   |
-| `cond3_k_*.conf`              | K beam with different EJ-510 reflection models      |
-| `vis_seg*.conf`               | Settings for visualization                          |
 
 ### Beam
 
