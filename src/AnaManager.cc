@@ -47,6 +47,7 @@ AnaManager::AnaManager()
     m_beam_pos_x(0.),
     m_beam_pos_y(0.),
     m_beam_pos_z(0.),
+    m_nDeltaElectrons(0),
     m_npe(0),          // Number of detected photoelectrons
     m_nTrapped_Air(0)
 {
@@ -77,6 +78,7 @@ void AnaManager::BeginOfRunAction(const G4Run*)
   m_tree->Branch("beam_pos_y", &m_beam_pos_y, "beam_pos_y/D");
   m_tree->Branch("beam_pos_z", &m_beam_pos_z, "beam_pos_z/D");
   m_tree->Branch("n_cherenkov_gen", &n_cherenkov_gen, "n_cherenkov_gen/I"); // Number of generated Cherenkov photons
+  m_tree->Branch("n_delta_e", &m_nDeltaElectrons, "n_delta_e/I");           // Number of generated delta electrons
   m_tree->Branch("npe", &m_npe, "npe/I");           // Number of detected photoelectrons
   
   // Trapping/Monitoring info

@@ -6,7 +6,10 @@ namespace
   auto& gAnaMan = AnaManager::GetInstance();
 }
 
-EventAction::EventAction() : G4UserEventAction(), fNCherenkovGen(0) {
+EventAction::EventAction()
+  : G4UserEventAction(),
+    fNCherenkovGen(0),
+    fNDeltaElectrons(0) {
 }
 
 EventAction::~EventAction() {
@@ -16,6 +19,7 @@ EventAction::~EventAction() {
 void EventAction::BeginOfEventAction(const G4Event* anEvent) {
   gAnaMan.BeginOfEventAction(anEvent);
   fNCherenkovGen = 0; // Initialize Cherenkov photon count
+  fNDeltaElectrons = 0; // Initialize delta electron count
 }
 
 //_____________________________________________________________________________
@@ -23,6 +27,7 @@ void EventAction::EndOfEventAction(const G4Event* anEvent) {
   G4int eventID = anEvent->GetEventID();
 
   gAnaMan.SetCherenkovGen(fNCherenkovGen);
+  gAnaMan.SetNumDeltaElectrons(fNDeltaElectrons);
   gAnaMan.EndOfEventAction(anEvent); // Save event data to AnaManager
 
 
