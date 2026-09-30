@@ -28,9 +28,9 @@ AnaManager& AnaManager::GetInstance()
 }
 
 AnaManager::AnaManager()
-  : m_file(),
+  : m_file(nullptr),
     m_output_rootfile_path("test.root"),
-    m_tree(new TTree("tree", "GEANT4 optical simulation for KVC")),
+    m_tree(nullptr),
     m_evnum(0),
     m_event_id(0),
     m_nhit_mppc(0),
@@ -58,8 +58,13 @@ AnaManager::~AnaManager()
 //_____________________________________________________________________________
 void AnaManager::BeginOfRunAction(const G4Run*)
 {
+  // The output file and tree are created only once, at the first run.
+  // Events of all runs in one session are stored in the same tree.
+  if (m_file) return;
+
   m_file = new TFile(m_output_rootfile_path, "RECREATE");
-  m_tree->Reset();
+  // Create the tree inside the output file so that baskets are written to disk
+  m_tree = new TTree("tree", "GEANT4 optical simulation for KVC");
 
   m_tree->Branch("evnum", &m_evnum, "evnum/I");
   m_tree->Branch("event_id", &m_event_id, "event_id/I");
@@ -106,16 +111,16 @@ void AnaManager::BeginOfEventAction(const G4Event* anEvent)
 //_____________________________________________________________________________
 void AnaManager::EndOfEventAction(const G4Event* anEvent)
 {
-  G4HCofThisEvent* HCTE = anEvent->GetHCofThisEvent();
-  if(!HCTE) return;
   m_event_id = anEvent->GetEventID();
   G4SDManager *SDMan = G4SDManager::GetSDMpointer();
 
   m_nhit_mppc = 0;  
   m_npe = 0; // initialization
-  G4THitsCollection<MPPCHit>* MPPCHC;
+  // A missing hits collection is treated as zero hits so that every event is filled
+  G4THitsCollection<MPPCHit>* MPPCHC = nullptr;
+  G4HCofThisEvent* HCTE = anEvent->GetHCofThisEvent();
   G4int ColIdMPPC = SDMan->GetCollectionID("MppcCollection");
-  if (ColIdMPPC >= 0) {
+  if (HCTE && ColIdMPPC >= 0) {
     MPPCHC = dynamic_cast<G4THitsCollection<MPPCHit>*>(HCTE->GetHC(ColIdMPPC));
     if (MPPCHC) {
       m_nhit_mppc = MPPCHC->entries();
@@ -161,11 +166,25 @@ void AnaManager::EndOfEventAction(const G4Event* anEvent)
 
 //_____________________________________________________________________________
 void AnaManager::EndOfRunAction(const G4Run* aRun) {
+  // Write the tree after each run so that the file is valid even if the session ends abnormally
   if (m_file && m_file->IsOpen()) {
     m_file->cd();
-    m_tree->Write();
+    m_tree->Write("", TObject::kOverwrite);
+  }
+}
+
+//_____________________________________________________________________________
+void AnaManager::CloseOutputFile()
+{
+  if (!m_file) return;
+  if (m_file->IsOpen()) {
+    m_file->cd();
+    m_tree->Write("", TObject::kOverwrite);
     m_file->Close();
   }
+  delete m_file; // also deletes the tree owned by the file
+  m_file = nullptr;
+  m_tree = nullptr;
 }
 
 //_____________________________________________________________________________

@@ -59,6 +59,7 @@ public:
   void EndOfRunAction(const G4Run*);
   void BeginOfEventAction(const G4Event*);
   void EndOfEventAction(const G4Event*);
+  void CloseOutputFile(); // Write the tree and close the output file (call once at the end)
 
   void ResetContainer();
   void SetNumOfCerenkovAll(G4int cerenkov_all);

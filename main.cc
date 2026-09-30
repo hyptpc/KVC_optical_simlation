@@ -101,6 +101,8 @@ int main(int argc, char** argv)
     delete ui;
   }
 
+  gAnaMan.CloseOutputFile();
+
   delete visManager;
   delete runManager;
 
