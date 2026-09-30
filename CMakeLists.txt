@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16...3.27)
-project(MPPCSim)
+project(KVCOpticalSim)
 
 #-------------------------------------------------------------------------------
 # Disable G4MT (Multi-threading support)
