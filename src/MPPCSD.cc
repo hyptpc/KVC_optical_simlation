@@ -65,12 +65,7 @@ G4bool MPPCSD::ProcessHits(G4Step *aStep, G4TouchableHistory *ROhist)
   // Photon detection is determined by detectFlag based on QE.
   aTrack->SetTrackStatus(fStopAndKill);
 
-#ifdef USE_SURFACE_PDE
-  // In Method A, Geant4 boundary process handled efficiency. 
-  // Any photon reaching here is a survivor.
-  detectFlag = 1;
-#else
-  // -- QE check (Method B) -----
+  // -- QE check -----
   G4double eval_energy = energy;
   if      (eval_energy < m_range_min) eval_energy = m_range_min;
   else if (eval_energy > m_range_max) eval_energy = m_range_max;
@@ -82,7 +77,6 @@ G4bool MPPCSD::ProcessHits(G4Step *aStep, G4TouchableHistory *ROhist)
   if (random_value <= qe_value) {
     detectFlag = 1;
   }
-#endif
 
   // -- record -----
   if (detectFlag == 1) {

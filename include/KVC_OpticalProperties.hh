@@ -1,9 +1,6 @@
 #ifndef KVC_OpticalProperties_h
 #define KVC_OpticalProperties_h 1
 
-// Toggle this macro to switch between Method A (Surface Property) and Method B (Manual SD Calculation)
-// #define USE_SURFACE_PDE 1
-
 #include "globals.hh"
 #include <vector>
 #include <CLHEP/Units/SystemOfUnits.h>

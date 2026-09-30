@@ -502,7 +502,7 @@ DetectorConstruction::AddSurfaceProperties()
   }
 
   // Quartz Surface (used ONLY for Quartz-Air and Quartz-Wrap boundaries;
-  // Quartz-MPPC boundary uses surface_mppc below, i.e. polished / mirror-like.)
+  // Quartz-MPPC boundary uses surface_mppc_refl below, i.e. polished / mirror-like.)
   auto surface_quartz = new G4OpticalSurface("surface_quartz");
   surface_quartz->SetModel(unified);
   surface_quartz->SetType(dielectric_dielectric);
@@ -659,41 +659,8 @@ DetectorConstruction::AddSurfaceProperties()
   surface_bs->SetMaterialPropertiesTable(bs_prop);
   if (m_blacksheet_lv) new G4LogicalSkinSurface("BlackSheetSurface", m_blacksheet_lv, surface_bs);
 
-#ifdef USE_SURFACE_PDE
-  // MPPC Surface (Added for Method A)
-  // Retrieve MppcLV from Store since it's not a member
-  auto mppc_lv = G4LogicalVolumeStore::GetInstance()->GetVolume("MppcLV", false);
-  if (mppc_lv) {
-      auto surface_mppc = new G4OpticalSurface("surface_mppc");
-      surface_mppc->SetType(dielectric_dielectric);
-      surface_mppc->SetFinish(polished);
-      surface_mppc->SetModel(unified); // or glisur
-
-      auto mppc_surf_prop = new G4MaterialPropertiesTable();
-      // Method A: Add EFFICIENCY to the surface
-      G4double qe_scale = 1.0;
-      if (gConfMan.Check("qe_scale")) qe_scale = gConfMan.GetDouble("qe_scale");
-      
-      std::vector<G4double> r_pde = KVC_Optical::R_MPPC_PDE;
-      for(auto& val : r_pde) val *= qe_scale;
-
-      mppc_surf_prop->AddProperty("EFFICIENCY", KVC_Optical::E_MPPC_PDE, r_pde);
-      surface_mppc->SetMaterialPropertiesTable(mppc_surf_prop);
-      new G4LogicalSkinSurface("MppcSurface", mppc_lv, surface_mppc);
-
-      // Quartz–MPPC interface: always polished (mirror-like), not ground/frosted.
-      if (m_kvc_pv) {
-          for (size_t i = 0; i < m_mppc_pvs.size(); ++i) {
-              new G4LogicalBorderSurface("QuartzToMppc", m_kvc_pv, m_mppc_pvs[i], surface_mppc);
-              new G4LogicalBorderSurface("MppcToQuartz", m_mppc_pvs[i], m_kvc_pv, surface_mppc);
-          }
-      }
-  }
-#endif
-
-  // --- Always apply physical optical boundary for Quartz to MPPC to allow Fresnel reflection ---
-  // Even if we don't use surface PDE (Method B SD handles detection), 
-  // we MUST simulate physical reflection at the boundary.
+  // --- Optical boundary between Quartz and MPPC to allow Fresnel reflection ---
+  // Photon detection itself is handled in MPPCSD.
   auto mppc_lv_for_reflection = G4LogicalVolumeStore::GetInstance()->GetVolume("MppcLV", false);
   if (mppc_lv_for_reflection) {
       auto surface_mppc_refl = new G4OpticalSurface("surface_mppc_refl");
