@@ -38,12 +38,12 @@ private:
   G4double m_beam_pos_x;
   G4double m_beam_pos_y;
   G4double m_beam_pos_z;  
-  G4int n_cherenkov_gen;   // チェレンコフ光発生数
-  G4int m_nDeltaElectrons; // δ電子生成数
-  G4int m_npe;             // 検出フォトエレクトロン数
-  G4int m_nTrapped_Air;    // 空気層（およびWrapper）で消失した数
+  G4int n_cherenkov_gen;   // Number of generated Cherenkov photons
+  G4int m_nDeltaElectrons; // Number of generated delta electrons
+  G4int m_npe;             // Number of detected photoelectrons
+  G4int m_nTrapped_Air;    // Number of photons lost in the air layer (or the wrapper)
 
-  std::vector<G4double> m_gen_wave_length; // 生成されたチェレンコフ光の波長
+  std::vector<G4double> m_gen_wave_length; // Wavelengths of generated Cherenkov photons
   std::vector<G4double> m_pos_x;
   std::vector<G4double> m_pos_y;
   std::vector<G4double> m_pos_z;
@@ -68,8 +68,8 @@ public:
   void SetBeamPosition(G4ThreeVector beam_position);
   void SetOutputRootfilePath(G4String output_rootfile_path);
   G4String GetOutputRootfilePath();
-  //void FillTree(); //追加
-  void SetCherenkovGen(Int_t val) { n_cherenkov_gen = val; } //追加
+  //void FillTree();
+  void SetCherenkovGen(Int_t val) { n_cherenkov_gen = val; }
   void SetNumDeltaElectrons(G4int n) { m_nDeltaElectrons = n; }
   
   void IncrementTrappedAir() { m_nTrapped_Air++; }

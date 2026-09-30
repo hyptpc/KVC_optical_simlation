@@ -6,11 +6,9 @@
 
 class EventAction : public G4UserEventAction {
 
-    //追加
 private: 
-    G4int fNCherenkovGen;    // チェレンコフ光生成数
-    G4int fNDeltaElectrons;  // δ電子生成数
-    //追加終
+    G4int fNCherenkovGen;    // Number of generated Cherenkov photons
+    G4int fNDeltaElectrons;  // Number of generated delta electrons
 
 public:
     EventAction();
@@ -19,12 +17,10 @@ public:
     virtual void BeginOfEventAction(const G4Event* event);
     virtual void EndOfEventAction(const G4Event* event);
 
-    //追加
-    void AddCherenkovGen() { fNCherenkovGen++; } //addCherenkovGenは、fNCherenkovGen++という操作
+    void AddCherenkovGen() { fNCherenkovGen++; }
     G4int GetCherenkovGen() const { return fNCherenkovGen; }
     void AddDeltaElectron() { fNDeltaElectrons++; }
     G4int GetDeltaElectrons() const { return fNDeltaElectrons; }
-    //追加終
     
 };
 
