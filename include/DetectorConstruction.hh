@@ -1,22 +1,27 @@
-#ifndef DetectorConstruction_h
-#define DetectorConstruction_h 1
+// -*- C++ -*-
 
-#include "globals.hh"
-#include "G4VUserDetectorConstruction.hh"
-#include <CLHEP/Units/SystemOfUnits.h>
-#include "G4Element.hh"
-#include "G4Material.hh"
+#ifndef DETECTOR_CONSTRUCTION_HH
+#define DETECTOR_CONSTRUCTION_HH
 
+#include <map>
 #include <vector>
-#include "G4VPhysicalVolume.hh"
 
-class DetectorMessenger;
+#include <G4String.hh>
+#include <G4Types.hh>
+#include <G4VUserDetectorConstruction.hh>
 
+class DetectorMessenger; // Placeholder for a future messenger (not implemented yet)
+class G4Element;
+class G4LogicalVolume;
+class G4Material;
+class G4VPhysicalVolume;
+
+//_____________________________________________________________________________
 class DetectorConstruction : public G4VUserDetectorConstruction
 {
 public:
   DetectorConstruction();
-  ~DetectorConstruction();
+  ~DetectorConstruction() override;
 
 private:
   std::map<G4String, G4Element*>  m_element_map;
@@ -31,15 +36,15 @@ private:
   G4bool                          m_check_overlaps;
 
 private:
-  virtual G4VPhysicalVolume* Construct();
+  G4VPhysicalVolume* Construct() override;
   void ConstructElements();
   void ConstructMaterials();
   void ConstructKVC();
   void AddOpticalProperties();
   void AddSurfaceProperties();
-  void DumpMaterialProperties(G4Material* mat);
+  void DumpMaterialProperties(G4Material* mat); // For debugging (enabled with DEBUG)
 
-  void CheckOverlaps(G4bool flag) { m_check_overlaps = flag; }
+  void CheckOverlaps(G4bool is_enabled) { m_check_overlaps = is_enabled; }
 };
 
-#endif /*OpNoviceDetectorConstruction_h*/
+#endif

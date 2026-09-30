@@ -1,32 +1,38 @@
-#ifndef MPPCSD_HH
-#define MPPCSD_HH
+// -*- C++ -*-
 
-#include "G4VSensitiveDetector.hh"
+#ifndef MPPC_SD_HH
+#define MPPC_SD_HH
+
+#include <G4VSensitiveDetector.hh>
+
 #include "MPPCHit.hh"
 
-#include "TSpline.h"
-
+class G4HCofThisEvent;
 class G4Step;
 class G4TouchableHistory;
-class G4HCofThisEvent;
+class TSpline3;
 
-class MPPCSD : public G4VSensitiveDetector {
+//_____________________________________________________________________________
+class MPPCSD : public G4VSensitiveDetector
+{
 public:
   MPPCSD(const G4String& name);
   ~MPPCSD() override;
 
-  void Initialize(G4HCofThisEvent* HCE) override;
-  G4bool ProcessHits(G4Step* step, G4TouchableHistory* history) override;
-  void EndOfEvent(G4HCofThisEvent* HCE) override;
+public:
+  void   Initialize(G4HCofThisEvent* HCTE) override;
+  G4bool ProcessHits(G4Step* aStep, G4TouchableHistory* ROhist) override;
+  void   EndOfEvent(G4HCofThisEvent* HCTE) override;
+
+private:
+  void InitializeQESpline();
 
 private:
   G4THitsCollection<MPPCHit>* m_hits_collection;
-  TSpline3* m_qe_spline;
-  G4double m_range_min;
-  G4double m_range_max;
-  G4double m_qe_scale;
-
-  void InitializeQESpline();
+  TSpline3*                   m_qe_spline; // PDE as a function of photon energy
+  G4double                    m_range_min; // Energy range of the PDE table
+  G4double                    m_range_max;
+  G4double                    m_qe_scale;  // Scale factor for the PDE (conf: qe_scale)
 };
 
 #endif

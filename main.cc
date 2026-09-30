@@ -1,76 +1,83 @@
-#include "DetectorConstruction.hh"
+// -*- C++ -*-
+
+#include <random>
+
+#include <G4BuilderType.hh>
+#include <G4EmStandardPhysics_option4.hh>
+#include <G4OpticalParameters.hh>
+#include <G4OpticalPhysics.hh>
+#include <G4RunManager.hh>
+#include <G4UIExecutive.hh>
+#include <G4UImanager.hh>
+#include <G4VisExecutive.hh>
+#include <QGSP_BERT.hh>
+#include <Randomize.hh>
+
 #include "ActionInitialization.hh"
 #include "AnaManager.hh"
 #include "ConfManager.hh"
-    
-#include "QGSP_BERT.hh"
-#include "G4EmStandardPhysics_option4.hh"
-#include "G4OpticalPhysics.hh"
-#include "G4RunManager.hh"
-#include "G4UIExecutive.hh"
-#include "G4UImanager.hh"
-#include "G4VisExecutive.hh"
-#include "G4BuilderType.hh"
-
-#include <random>
+#include "DetectorConstruction.hh"
 
 namespace
 {
   auto& gAnaMan  = AnaManager::GetInstance();
   auto& gConfMan = ConfManager::GetInstance();
-  void PrintUsage()
+
+  //___________________________________________________________________________
+  void
+  PrintUsage()
   {
     G4cerr << " Usage: " << G4endl
-	   << " KVCOpticalSim <conf file> <output rootfile name> [macro]"
+           << " KVCOpticalSim <conf file> <output rootfile name> [macro]"
            << G4endl;
   }
-}  // namespace
+}
 
-int main(int argc, char** argv)
+//_____________________________________________________________________________
+int
+main(int argc, char** argv)
 {
   if (argc < 3 || argc > 4) {
     PrintUsage();
     return 1;
   }
-  gConfMan.LoadConfigFile(argv[1]); 
+  gConfMan.LoadConfigFile(argv[1]);
   gAnaMan.SetOutputRootfilePath(argv[2]);
-  
+
   G4String macro;
   if (argc == 4) macro = argv[3];
 
   G4UIExecutive* ui = nullptr;
-  if (macro.empty())
-  {
+  if (macro.empty()) {
     ui = new G4UIExecutive(argc, argv);
   }
 
-  auto runManager = new G4RunManager();
+  auto run_manager = new G4RunManager();
 
-  std::random_device rd;
+  // Random seed: fixed from the conf file if given, otherwise randomized
+  std::random_device random_device;
   long seed;
   if (gConfMan.Check("seed")) {
-      seed = gConfMan.GetInt("seed");
-      G4cout << "Random seed: " << seed << " (Fixed from config)" << G4endl;
+    seed = gConfMan.GetInt("seed");
+    G4cout << "Random seed: " << seed << " (Fixed from config)" << G4endl;
   } else {
-      seed = rd();
-      G4cout << "Random seed: " << seed << " (Randomized)" << G4endl;
+    seed = random_device();
+    G4cout << "Random seed: " << seed << " (Randomized)" << G4endl;
   }
   G4Random::setTheSeed(seed);
 
-  runManager->SetUserInitialization(new DetectorConstruction());
+  run_manager->SetUserInitialization(new DetectorConstruction());
 
-  // Physics List setting
-  // G4VModularPhysicsList* physicsList = new FTFP_BERT;
-  G4VModularPhysicsList* physicsList = new QGSP_BERT;
-  physicsList->ReplacePhysics(new G4EmStandardPhysics_option4());
-  auto opticalPhysics = new G4OpticalPhysics();
-  physicsList->RegisterPhysics(opticalPhysics);
+  // Physics list
+  G4VModularPhysicsList* physics_list = new QGSP_BERT;
+  physics_list->ReplacePhysics(new G4EmStandardPhysics_option4());
+  physics_list->RegisterPhysics(new G4OpticalPhysics());
   // Decay physics (G4DecayPhysics) is already included in QGSP_BERT.
   // Remove it when decay is disabled in the conf file (decay 0).
-  if (gConfMan.GetInt("decay") == 0) physicsList->RemovePhysics(bDecay);
-  runManager->SetUserInitialization(physicsList);
+  if (gConfMan.GetInt("decay") == 0) physics_list->RemovePhysics(bDecay);
+  run_manager->SetUserInitialization(physics_list);
 
-  // G4Cerenkov setting
+  // Optical parameters (Cherenkov)
   auto optical_params = G4OpticalParameters::Instance();
   optical_params->SetCerenkovMaxPhotonsPerStep(100);
   optical_params->SetCerenkovStackPhotons(true);
@@ -78,40 +85,29 @@ int main(int argc, char** argv)
   optical_params->SetCerenkovVerboseLevel(1);
   optical_params->SetBoundaryVerboseLevel(1);
   optical_params->SetAbsorptionVerboseLevel(1);
-    
-  runManager->SetUserInitialization(new ActionInitialization());
-  runManager->Initialize();
 
-  
-  G4VisManager* visManager = new G4VisExecutive("Quiet");
-  visManager->Initialize();
+  run_manager->SetUserInitialization(new ActionInitialization());
+  run_manager->Initialize();
 
-  G4UImanager* UImanager = G4UImanager::GetUIpointer();
+  G4VisManager* vis_manager = new G4VisExecutive("Quiet");
+  vis_manager->Initialize();
 
+  G4UImanager* ui_manager = G4UImanager::GetUIpointer();
 
-  if (!macro.empty())
-  {
-    G4String command = "/control/execute ";
-    UImanager->ApplyCommand(command + macro);
-  }
-  else
-  {
-    UImanager->ApplyCommand("/control/execute vis.mac");
+  if (!macro.empty()) {
+    ui_manager->ApplyCommand("/control/execute " + macro);
+  } else {
+    ui_manager->ApplyCommand("/control/execute vis.mac");
     if (ui->IsGUI())
-      UImanager->ApplyCommand("/control/execute gui.mac");
+      ui_manager->ApplyCommand("/control/execute gui.mac");
     ui->SessionStart();
     delete ui;
   }
 
   gAnaMan.CloseOutputFile();
 
-  delete visManager;
-  delete runManager;
+  delete vis_manager;
+  delete run_manager;
 
   return 0;
 }
-
-
-
-
-

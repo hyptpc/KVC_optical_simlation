@@ -3,15 +3,18 @@
 #ifndef ACTION_INITIALIZATION_HH
 #define ACTION_INITIALIZATION_HH
 
-#include "G4VUserActionInitialization.hh"
+#include <G4VUserActionInitialization.hh>
 
-class ActionInitialization : public G4VUserActionInitialization {
+//_____________________________________________________________________________
+class ActionInitialization : public G4VUserActionInitialization
+{
 public:
-    ActionInitialization();
-    ~ActionInitialization() override;
+  ActionInitialization();
+  ~ActionInitialization() override;
 
-    void Build() const override;
-    void BuildForMaster() const override;
+public:
+  void Build() const override;
+  void BuildForMaster() const override;
 };
 
 #endif

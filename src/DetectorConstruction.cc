@@ -1,26 +1,28 @@
-#include "DetectorConstruction.hh"
-#include "MPPCSD.hh"
+// -*- C++ -*-
 
-#include "G4Box.hh"
-#include "G4Element.hh"
-#include "G4LogicalBorderSurface.hh"
-#include "G4LogicalSkinSurface.hh"
-#include "KVC_OpticalProperties.hh"
-#include "G4LogicalVolume.hh"
-#include "G4Material.hh"
-#include "G4OpticalSurface.hh"
-#include "G4PVPlacement.hh"
-#include "G4PhysicalVolumeStore.hh"
-#include "G4LogicalVolumeStore.hh"
-#include "G4SystemOfUnits.hh"
-#include "G4ThreeVector.hh"
-#include "G4SubtractionSolid.hh"
-#include "G4SDManager.hh"
-#include "G4VisAttributes.hh"
-#include "G4Colour.hh"
-#include "CLHEP/Units/SystemOfUnits.h"
+#include "DetectorConstruction.hh"
+
+#include <vector>
+
+#include <G4Box.hh>
+#include <G4Colour.hh>
+#include <G4Element.hh>
+#include <G4LogicalBorderSurface.hh>
+#include <G4LogicalSkinSurface.hh>
+#include <G4LogicalVolume.hh>
+#include <G4LogicalVolumeStore.hh>
+#include <G4Material.hh>
+#include <G4OpticalSurface.hh>
+#include <G4PVPlacement.hh>
+#include <G4SDManager.hh>
+#include <G4SubtractionSolid.hh>
+#include <G4SystemOfUnits.hh>
+#include <G4ThreeVector.hh>
+#include <G4VisAttributes.hh>
 
 #include "ConfManager.hh"
+#include "KVC_OpticalProperties.hh"
+#include "MPPCSD.hh"
 
 #define DEBUG 0
 
@@ -31,9 +33,17 @@ namespace
 
 //_____________________________________________________________________________
 DetectorConstruction::DetectorConstruction()
-  : G4VUserDetectorConstruction(), m_check_overlaps(true),
-    m_world_lv(nullptr), m_mother_lv(nullptr), m_blacksheet_lv(nullptr),
-    m_mother_pv(nullptr), m_kvc_pv(nullptr), m_wrap_pv(nullptr)
+  : G4VUserDetectorConstruction(),
+    m_element_map(),
+    m_material_map(),
+    m_world_lv(nullptr),
+    m_mother_lv(nullptr),
+    m_blacksheet_lv(nullptr),
+    m_mother_pv(nullptr),
+    m_kvc_pv(nullptr),
+    m_wrap_pv(nullptr),
+    m_mppc_pvs(),
+    m_check_overlaps(true)
 {
 }
 
@@ -51,7 +61,7 @@ DetectorConstruction::Construct()
   ConstructElements();
   ConstructMaterials();
   AddOpticalProperties();
-  
+
   auto world_solid = new G4Box("WorldSolid", 1.*m/2, 1.*m/2, 1.*m/2);
   m_world_lv = new G4LogicalVolume(world_solid, m_material_map["Air"],
                                    "World");
@@ -61,7 +71,7 @@ DetectorConstruction::Construct()
 
   ConstructKVC();
   AddSurfaceProperties();
-  
+
   return world_pv;
 }
 
@@ -132,7 +142,7 @@ DetectorConstruction::ConstructMaterials()
     G4Material(name, z, a, density, state, temperature, pressure);
   */
   G4String name;
-  G4double Z, A, density, massfraction;
+  G4double density, massfraction;
   G4int natoms, nel, ncomponents;
   const G4double room_temp = STP_Temperature + 20.*CLHEP::kelvin;
 
@@ -142,7 +152,7 @@ DetectorConstruction::ConstructMaterials()
     new G4Material(name, density=CLHEP::universe_mean_density, nel=2);
   m_material_map[name]->AddElement(m_element_map["Nitrogen"], 0.7);
   m_material_map[name]->AddElement(m_element_map["Oxygen"], 0.3);
-  
+
   // Air
   name = "Air";
   m_material_map[name] = new G4Material(name, density=1.2929e-03*g/cm3,
@@ -208,7 +218,7 @@ DetectorConstruction::ConstructMaterials()
   m_material_map[name] = new G4Material(name, density=0.2 *g/cm3, nel=2);
   m_material_map[name]->AddElement(m_element_map["Silicon"], natoms=1);
   m_material_map[name]->AddElement(m_element_map["Oxygen"],  natoms=2);
-  
+
   // Quartz for KVC (SiO2, crystalline)
   name = "QuartzKVC";
   m_material_map[name] = new G4Material(name, density=2.64 *g/cm3, nel=2);
@@ -275,21 +285,21 @@ DetectorConstruction::AddOpticalProperties()
   using CLHEP::m;
   using CLHEP::mm;
   using CLHEP::cm;
-  
+
   // +-----------------+
   // | Quartz Property |
   // +-----------------+
   auto quartz_prop = new G4MaterialPropertiesTable();
   quartz_prop->AddProperty("RINDEX", KVC_Optical::E_Quartz_RINDEX, KVC_Optical::R_Quartz_RINDEX);
-  
+
   std::vector<G4double> r_quartz_abs = KVC_Optical::R_Quartz_ABS;
   if (gConfMan.Check("quartz_abs_scale")) {
-      G4double scale = gConfMan.GetDouble("quartz_abs_scale");
-      for(auto& val : r_quartz_abs) val *= scale;
+    const G4double abs_scale = gConfMan.GetDouble("quartz_abs_scale");
+    for (auto& abs_length : r_quartz_abs) abs_length *= abs_scale;
   }
   quartz_prop->AddProperty("ABSLENGTH", KVC_Optical::E_Quartz_ABS, r_quartz_abs);
   m_material_map["QuartzKVC"]->SetMaterialPropertiesTable(quartz_prop);
-  
+
   // +--------------+
   // | Air Property |
   // +--------------+
@@ -298,7 +308,7 @@ DetectorConstruction::AddOpticalProperties()
   auto air_prop = new G4MaterialPropertiesTable();
   air_prop->AddProperty("RINDEX", KVC_Optical::E_Air, std::vector<G4double>{air_rindex, air_rindex});
   m_material_map["Air"]->SetMaterialPropertiesTable(air_prop);
-  
+
   // +----------------------+
   // | Black sheet Property |
   // +----------------------+
@@ -310,27 +320,27 @@ DetectorConstruction::AddOpticalProperties()
   // +-----------------+
   // | Teflon Property |
   // +-----------------+
-  G4int wrap_type = gConfMan.GetInt("wrap_type");
+  const G4int wrap_type = gConfMan.GetInt("wrap_type");
   G4double teflon_rindex = 1.35;
   if (gConfMan.Check("teflon_rindex")) teflon_rindex = gConfMan.GetDouble("teflon_rindex");
-  
+
   auto teflon_prop = new G4MaterialPropertiesTable();
   teflon_prop->AddProperty("RINDEX", KVC_Optical::E_Teflon, std::vector<G4double>{teflon_rindex, teflon_rindex});
-  
+
   if (wrap_type == 3) {
-      // Transmissive Teflon: Long Absorption Length
-      std::vector<G4double> abs_long = { 10.0*m, 10.0*m }; 
-      teflon_prop->AddProperty("ABSLENGTH", KVC_Optical::E_Teflon, abs_long);
+    // Transmissive Teflon: long absorption length
+    const std::vector<G4double> abs_long = { 10.0*m, 10.0*m };
+    teflon_prop->AddProperty("ABSLENGTH", KVC_Optical::E_Teflon, abs_long);
   } else {
-      // Standard Teflon: Opaque/Absorptive Bulk
-      teflon_prop->AddProperty("ABSLENGTH", KVC_Optical::E_Teflon, KVC_Optical::R_Teflon_ABS);
+    // Standard Teflon: opaque / absorptive bulk
+    teflon_prop->AddProperty("ABSLENGTH", KVC_Optical::E_Teflon, KVC_Optical::R_Teflon_ABS);
   }
   m_material_map["Teflon"]->SetMaterialPropertiesTable(teflon_prop);
 
   // +----------------+
   // | Mylar Property |
   // +----------------+
-  // Mylar surface is defined as dielectric_metal, so light does not penetrate. 
+  // Mylar surface is defined as dielectric_metal, so light does not penetrate.
   // RINDEX and ABSLENGTH are defined here for potential future model updates.
   auto mylar_prop = new G4MaterialPropertiesTable();
   mylar_prop->AddProperty("RINDEX", KVC_Optical::E_Mylar, KVC_Optical::R_Mylar_RINDEX);
@@ -345,7 +355,7 @@ DetectorConstruction::AddOpticalProperties()
   ej510_prop->AddProperty("RINDEX", KVC_Optical::E_EJ510_Bulk, KVC_Optical::R_EJ510_RINDEX);
   ej510_prop->AddProperty("ABSLENGTH", KVC_Optical::E_EJ510_Bulk, KVC_Optical::R_EJ510_ABS);
   m_material_map["EJ510"]->SetMaterialPropertiesTable(ej510_prop);
-  
+
   // +---------------+
   // | MPPC Property |
   // +---------------+
@@ -353,55 +363,52 @@ DetectorConstruction::AddOpticalProperties()
   mppc_prop->AddProperty("RINDEX", KVC_Optical::E_MPPC, KVC_Optical::R_MPPC_RINDEX);
   // mppc_prop->AddProperty("ABSLENGTH", KVC_Optical::E_MPPC, KVC_Optical::R_MPPC_ABS);
   m_material_map["MPPC"]->SetMaterialPropertiesTable(mppc_prop);
-  
+
   // +-------------------------------+
   // | MPPC surface (Epoxi) Property |
   // +-------------------------------+
   auto epoxi_prop = new G4MaterialPropertiesTable();
   epoxi_prop->AddProperty("RINDEX", KVC_Optical::E_Epoxi, KVC_Optical::R_Epoxi_RINDEX);
   epoxi_prop->AddProperty("ABSLENGTH", KVC_Optical::E_Epoxi, KVC_Optical::R_Epoxi_ABS);
-  m_material_map["Epoxi"]->SetMaterialPropertiesTable(epoxi_prop); 
+  m_material_map["Epoxi"]->SetMaterialPropertiesTable(epoxi_prop);
 }
 
 //_____________________________________________________________________________
 void
 DetectorConstruction::ConstructKVC()
 {
-  using CLHEP::mm;
   using CLHEP::deg;
-  using CLHEP::eV;
+  using CLHEP::mm;
 
-  G4PhysicalVolumeStore* store = G4PhysicalVolumeStore::GetInstance();
+  // Parameters from ConfManager
+  const G4double quartz_thickness    = gConfMan.GetDouble("quartz_thickness") * mm;
+  const G4double air_layer_thickness = gConfMan.GetDouble("air_layer_thickness") * mm;
+  const G4double wrapper_thickness   = gConfMan.GetDouble("wrapper_thickness") * mm;
+  const G4int    do_segmentize       = gConfMan.GetInt("do_segmentize");
+  const G4int    wrap_type           = gConfMan.GetInt("wrap_type");
 
-  // Parameters from ConfManager 
-  G4double quartz_thickness    = gConfMan.GetDouble("quartz_thickness") * mm;
-  G4double air_layer_thickness = gConfMan.GetDouble("air_layer_thickness") * mm;
-  G4double wrapper_thickness   = gConfMan.GetDouble("wrapper_thickness") * mm;
-  G4int do_segmentize          = gConfMan.GetInt("do_segmentize");
-  G4int wrap_type              = gConfMan.GetInt("wrap_type");
-
-  G4ThreeVector kvc_size = (do_segmentize == 1)
+  const G4ThreeVector kvc_size = (do_segmentize == 1)
     ? G4ThreeVector(26.0 * mm, 120.0 * mm, quartz_thickness)
     : G4ThreeVector(104.0 * mm, 120.0 * mm, quartz_thickness);
 
-  G4ThreeVector origin_pos(0.0*mm, 0.0*mm, 0.0*mm);
+  const G4ThreeVector origin_pos(0.0*mm, 0.0*mm, 0.0*mm);
 
-  // Mother Volume (Air)
-  auto mother_solid = new G4Box("KvcMotherSolid", 
+  // Mother volume (air)
+  auto mother_solid = new G4Box("KvcMotherSolid",
                                 kvc_size.x()/2.0 + 50.0*mm,
                                 kvc_size.y()/2.0 + 50.0*mm,
-                                kvc_size.z()/2.0 + 50.0*mm); 
+                                kvc_size.z()/2.0 + 50.0*mm);
   m_mother_lv = new G4LogicalVolume(mother_solid, m_material_map["Air"], "KvcMotherLV");
   m_mother_pv = new G4PVPlacement(nullptr, origin_pos, m_mother_lv,
                                   "KvcMotherPV", m_world_lv, false, 0, m_check_overlaps);
   m_mother_lv->SetVisAttributes(G4VisAttributes::GetInvisible());
 
   // Radiator
-  auto kvc_solid = new G4Box("KvcSolid", 
-			     kvc_size.x()/2.0,
-			     kvc_size.y()/2.0,
-			     kvc_size.z()/2.0);
-  auto kvc_lv = new G4LogicalVolume(kvc_solid, m_material_map["QuartzKVC"], "KvcLV");  
+  auto kvc_solid = new G4Box("KvcSolid",
+                             kvc_size.x()/2.0,
+                             kvc_size.y()/2.0,
+                             kvc_size.z()/2.0);
+  auto kvc_lv = new G4LogicalVolume(kvc_solid, m_material_map["QuartzKVC"], "KvcLV");
   m_kvc_pv = new G4PVPlacement(nullptr, origin_pos, kvc_lv, "KvcPV",
                                m_mother_lv, false, 0, m_check_overlaps);
   kvc_lv->SetVisAttributes(G4Colour::Yellow());
@@ -413,59 +420,69 @@ DetectorConstruction::ConstructKVC()
   else if (wrap_type == 2) wrap_material = m_material_map["EJ510"];
   else if (wrap_type == 3) wrap_material = m_material_map["Teflon"]; // Transmissive Teflon
   else {
-    G4Exception("DetectorConstruction::ConstructKVC", "InvalidWrapType", FatalException, "wrap_type must be 0,1,2,3");
+    G4Exception("DetectorConstruction::ConstructKVC", "InvalidWrapType",
+                FatalException, "wrap_type must be 0,1,2,3");
   }
 
   auto wrap_solid_full = new G4Box("WrapSolidFull",
-			     kvc_size.x()/2.0 + air_layer_thickness + wrapper_thickness,
-			     kvc_size.y()/2.0,
-			     kvc_size.z()/2.0 + air_layer_thickness + wrapper_thickness);
+                                   kvc_size.x()/2.0 + air_layer_thickness + wrapper_thickness,
+                                   kvc_size.y()/2.0,
+                                   kvc_size.z()/2.0 + air_layer_thickness + wrapper_thickness);
   auto wrap_solid_cut  = new G4Box("WrapSolidCut",
-			     kvc_size.x()/2.0 + air_layer_thickness,
-			     kvc_size.y()/2.0,
-			     kvc_size.z()/2.0 + air_layer_thickness);
-  
-  G4SubtractionSolid* wrap_solid = new G4SubtractionSolid("WrapSolid", wrap_solid_full, wrap_solid_cut, nullptr, origin_pos);
+                                   kvc_size.x()/2.0 + air_layer_thickness,
+                                   kvc_size.y()/2.0,
+                                   kvc_size.z()/2.0 + air_layer_thickness);
+  auto wrap_solid = new G4SubtractionSolid("WrapSolid", wrap_solid_full, wrap_solid_cut,
+                                           nullptr, origin_pos);
   auto wrap_lv = new G4LogicalVolume(wrap_solid, wrap_material, "WrapLV");
-  m_wrap_pv = new G4PVPlacement(nullptr, origin_pos, wrap_lv, "WrapPV", m_mother_lv, false, 0, m_check_overlaps); 
+  m_wrap_pv = new G4PVPlacement(nullptr, origin_pos, wrap_lv, "WrapPV",
+                                m_mother_lv, false, 0, m_check_overlaps);
   wrap_lv->SetVisAttributes(G4Colour::White());
 
-  // MPPC 
-  G4ThreeVector mppc_size(6.0*mm, 6.0*mm, 1.0*mm);
+  // MPPC
+  const G4ThreeVector mppc_size(6.0*mm, 6.0*mm, 1.0*mm);
   auto mppc_solid = new G4Box("MppcSolid", mppc_size.x()/2.0, mppc_size.y()/2.0, mppc_size.z()/2.0);
   auto mppc_lv = new G4LogicalVolume(mppc_solid, m_material_map["Epoxi"], "MppcLV");
-  
-  auto rot = new G4RotationMatrix;
-  rot->rotateX(90.0*deg);
-  G4int n_mppc = (do_segmentize == 1) ? 4 : 16;
-  G4double offset = 0.0 * mm;
+
+  auto mppc_rot = new G4RotationMatrix;
+  mppc_rot->rotateX(90.0*deg);
+  const G4int n_mppc = (do_segmentize == 1) ? 4 : 16; // MPPCs per row
+  const G4double mppc_gap = 0.0 * mm;                 // Gap between the quartz and the MPPC
+  const G4double mppc_pitch = mppc_size.x() + 0.5*mm;
+  const G4double y_up  =  kvc_size.y()/2.0 + mppc_size.z()/2.0 + mppc_gap;
+  const G4double y_low = -kvc_size.y()/2.0 - mppc_size.z()/2.0 - mppc_gap;
 
   if (6.0*mm < quartz_thickness && quartz_thickness < 12.0*mm) {
-    for(G4int i=0; i<n_mppc; ++i){
-      G4ThreeVector pos_up(-(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i), kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset, 0.0*mm);
-      G4ThreeVector pos_low(-(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i), -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset, 0.0*mm);
-      m_mppc_pvs.push_back(new G4PVPlacement(rot, pos_up,  mppc_lv, "MppcPV", m_mother_lv, false, i,          m_check_overlaps));
-      m_mppc_pvs.push_back(new G4PVPlacement(rot, pos_low, mppc_lv, "MppcPV", m_mother_lv, false, i+n_mppc,   m_check_overlaps));
+    // One row of MPPCs on each of the upper and lower faces
+    for (G4int i = 0; i < n_mppc; ++i) {
+      const G4double x = -mppc_pitch * ((n_mppc-1)/2.0 - i);
+      const G4ThreeVector pos_up(x, y_up, 0.0*mm);
+      const G4ThreeVector pos_low(x, y_low, 0.0*mm);
+      m_mppc_pvs.push_back(new G4PVPlacement(mppc_rot, pos_up,  mppc_lv, "MppcPV", m_mother_lv, false, i,          m_check_overlaps));
+      m_mppc_pvs.push_back(new G4PVPlacement(mppc_rot, pos_low, mppc_lv, "MppcPV", m_mother_lv, false, i+n_mppc,   m_check_overlaps));
     }
   } else if (12.0*mm <= quartz_thickness) {
-    for(G4int i=0; i<n_mppc; ++i){
-      G4double z_offset = quartz_thickness/6.0 + 1.0*mm;
-      G4ThreeVector pos_up1( -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i), kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset,  z_offset);
-      G4ThreeVector pos_up2( -(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i), kvc_size.y()/2.0 + mppc_size.z()/2.0 + offset, -z_offset);
-      G4ThreeVector pos_low1(-(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i), -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset,  z_offset);
-      G4ThreeVector pos_low2(-(mppc_size.x() + 0.5*mm) * ((n_mppc-1)/2.0 - i), -kvc_size.y()/2.0 - mppc_size.z()/2.0 - offset, -z_offset);
-      m_mppc_pvs.push_back(new G4PVPlacement(rot, pos_up1,  mppc_lv, "MppcPV", m_mother_lv, false, i,          m_check_overlaps));
-      m_mppc_pvs.push_back(new G4PVPlacement(rot, pos_up2,  mppc_lv, "MppcPV", m_mother_lv, false, i+n_mppc,   m_check_overlaps));
-      m_mppc_pvs.push_back(new G4PVPlacement(rot, pos_low1, mppc_lv, "MppcPV", m_mother_lv, false, i+2*n_mppc, m_check_overlaps));
-      m_mppc_pvs.push_back(new G4PVPlacement(rot, pos_low2, mppc_lv, "MppcPV", m_mother_lv, false, i+3*n_mppc, m_check_overlaps));
+    // Two rows of MPPCs on each of the upper and lower faces
+    const G4double z_offset = quartz_thickness/6.0 + 1.0*mm;
+    for (G4int i = 0; i < n_mppc; ++i) {
+      const G4double x = -mppc_pitch * ((n_mppc-1)/2.0 - i);
+      const G4ThreeVector pos_up1( x, y_up,   z_offset);
+      const G4ThreeVector pos_up2( x, y_up,  -z_offset);
+      const G4ThreeVector pos_low1(x, y_low,  z_offset);
+      const G4ThreeVector pos_low2(x, y_low, -z_offset);
+      m_mppc_pvs.push_back(new G4PVPlacement(mppc_rot, pos_up1,  mppc_lv, "MppcPV", m_mother_lv, false, i,          m_check_overlaps));
+      m_mppc_pvs.push_back(new G4PVPlacement(mppc_rot, pos_up2,  mppc_lv, "MppcPV", m_mother_lv, false, i+n_mppc,   m_check_overlaps));
+      m_mppc_pvs.push_back(new G4PVPlacement(mppc_rot, pos_low1, mppc_lv, "MppcPV", m_mother_lv, false, i+2*n_mppc, m_check_overlaps));
+      m_mppc_pvs.push_back(new G4PVPlacement(mppc_rot, pos_low2, mppc_lv, "MppcPV", m_mother_lv, false, i+3*n_mppc, m_check_overlaps));
     }
   } else {
-    G4Exception("DetectorConstruction::ConstructKVC", "InvalidQuartzThickness", FatalException, "Quartz thickness too small.");
+    G4Exception("DetectorConstruction::ConstructKVC", "InvalidQuartzThickness",
+                FatalException, "Quartz thickness too small.");
   }
   mppc_lv->SetVisAttributes(G4Colour::Blue());
-  auto mppcSD = new MPPCSD("mppcSD");
-  G4SDManager::GetSDMpointer()->AddNewDetector(mppcSD);
-  mppc_lv->SetSensitiveDetector(mppcSD);
+  auto mppc_sd = new MPPCSD("mppcSD");
+  G4SDManager::GetSDMpointer()->AddNewDetector(mppc_sd);
+  mppc_lv->SetSensitiveDetector(mppc_sd);
 
   // Blacksheet
   auto blacksheet_solid_full = new G4Box("BlacksheetSolidFull",
@@ -476,9 +493,11 @@ DetectorConstruction::ConstructKVC()
                                          kvc_size.x()/2.0 + air_layer_thickness + wrapper_thickness + 1.0*mm,
                                          kvc_size.y()/2.0 + 2.0*mm,
                                          kvc_size.z()/2.0 + air_layer_thickness + wrapper_thickness + 1.0*mm);
-  auto blacksheet_solid = new G4SubtractionSolid("BlacksheetSolid", blacksheet_solid_full, blacksheet_solid_cut, nullptr, origin_pos);
+  auto blacksheet_solid = new G4SubtractionSolid("BlacksheetSolid", blacksheet_solid_full,
+                                                 blacksheet_solid_cut, nullptr, origin_pos);
   m_blacksheet_lv = new G4LogicalVolume(blacksheet_solid, m_material_map["Blacksheet"], "BlacksheetLV");
-  new G4PVPlacement(nullptr, origin_pos, m_blacksheet_lv, "BlacksheetPV", m_mother_lv, false, 0, m_check_overlaps);
+  new G4PVPlacement(nullptr, origin_pos, m_blacksheet_lv, "BlacksheetPV",
+                    m_mother_lv, false, 0, m_check_overlaps);
   m_blacksheet_lv->SetVisAttributes(G4Colour::Black());
 }
 
@@ -487,230 +506,217 @@ void
 DetectorConstruction::AddSurfaceProperties()
 {
   using CLHEP::mm;
-  using CLHEP::eV;
 
-  G4int wrap_type              = gConfMan.GetInt("wrap_type");
-  G4double air_layer_thickness = gConfMan.GetDouble("air_layer_thickness") * mm;
-  G4int quartz_finish          = gConfMan.GetInt("quartz_finish");  // 0:polished, 1:ground
-  G4double sigma_alpha         = 0.0;
+  const G4int    wrap_type           = gConfMan.GetInt("wrap_type");
+  const G4double air_layer_thickness = gConfMan.GetDouble("air_layer_thickness") * mm;
+  const G4int    quartz_finish       = gConfMan.GetInt("quartz_finish"); // 0: polished, 1: ground
+  G4double quartz_sigma_alpha = 0.0;
   if (gConfMan.Check("Quartz_A_Alpha") && quartz_finish == 0) {
-      sigma_alpha = gConfMan.GetDouble("Quartz_A_Alpha");
+    quartz_sigma_alpha = gConfMan.GetDouble("Quartz_A_Alpha");
   } else if (gConfMan.Check("Quartz_B_Alpha") && quartz_finish == 1) {
-      sigma_alpha = gConfMan.GetDouble("Quartz_B_Alpha");
+    quartz_sigma_alpha = gConfMan.GetDouble("Quartz_B_Alpha");
   } else if (gConfMan.Check("sigma_alpha")) {
-      sigma_alpha = gConfMan.GetDouble("sigma_alpha");
+    quartz_sigma_alpha = gConfMan.GetDouble("sigma_alpha");
   }
 
-  // Quartz Surface (used ONLY for Quartz-Air and Quartz-Wrap boundaries;
-  // Quartz-MPPC boundary uses surface_mppc_refl below, i.e. polished / mirror-like.)
+  // Quartz surface (used ONLY for Quartz-Air boundaries;
+  // the Quartz-MPPC boundary uses surface_mppc_refl below, i.e. polished / mirror-like)
   auto surface_quartz = new G4OpticalSurface("surface_quartz");
   surface_quartz->SetModel(unified);
   surface_quartz->SetType(dielectric_dielectric);
-  if(quartz_finish == 1){
+  if (quartz_finish == 1) {
     surface_quartz->SetFinish(ground);
   } else {
     surface_quartz->SetFinish(polished);
   }
-  surface_quartz->SetSigmaAlpha(sigma_alpha);
+  surface_quartz->SetSigmaAlpha(quartz_sigma_alpha);
 
   auto quartz_prop = new G4MaterialPropertiesTable();
-  std::vector<G4double> e_surface = KVC_Optical::E_Unified_Surface;
+  const std::vector<G4double> e_surface = KVC_Optical::E_Unified_Surface;
   quartz_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("quartz_specularLobe"), true);
   quartz_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("quartz_specularSpike"), true);
-  quartz_prop->AddConstProperty("BACKSCATTERCONSTANT",  gConfMan.GetDouble("quartz_backScatter"), true);
+  quartz_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("quartz_backScatter"), true);
 
-  G4double q_boundary_r = gConfMan.GetDouble("quartz_boundary_reflectivity");
-  if (q_boundary_r >= 0.0) {
-      quartz_prop->AddProperty("REFLECTIVITY", e_surface, std::vector<G4double>{q_boundary_r, q_boundary_r});
+  const G4double quartz_reflectivity = gConfMan.GetDouble("quartz_boundary_reflectivity");
+  if (quartz_reflectivity >= 0.0) {
+    quartz_prop->AddProperty("REFLECTIVITY", e_surface,
+                             std::vector<G4double>{quartz_reflectivity, quartz_reflectivity});
   }
 
   surface_quartz->SetMaterialPropertiesTable(quartz_prop);
 
-  // Wrapper Surface
-  G4OpticalSurface* wrap_surface = nullptr;
-
-  // Wrappers (Teflon, Mylar, EJ-510)
-  // Shared logic for wrapper configuration to avoid code duplication and confusion
-  // Specific material properties are selected based on wrap_type
-
-  G4OpticalSurface* surface_wrapper = new G4OpticalSurface("surface_wrapper");
+  // Wrapper surface (Teflon, Mylar, EJ-510), selected by wrap_type
+  auto surface_wrapper = new G4OpticalSurface("surface_wrapper");
   surface_wrapper->SetModel(unified);
-
   auto wrapper_prop = new G4MaterialPropertiesTable();
 
-  // Common parameters that apply to all wrappers (or at least the ones using unified model)
-  // These keys are "wrapper_..." to indicate they are tunable parameters for whatever wrapper is selected.
-  // Note: Mylar might ignore some of these due to being dielectric_metal / polished.
-  
   if (wrap_type == 0) { // Teflon
-      surface_wrapper->SetType(dielectric_dielectric);
-      surface_wrapper->SetFinish(groundfrontpainted);
-      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha")); 
+    surface_wrapper->SetType(dielectric_dielectric);
+    surface_wrapper->SetFinish(groundfrontpainted);
+    surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha"));
 
+    std::vector<G4double> r_ptfe = KVC_Optical::R_PTFE_Thin;
+    const G4double r_scale = gConfMan.GetDouble("teflon_reflectivity_scale");
+    for (auto& r : r_ptfe) r *= r_scale;
+    wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, r_ptfe);
+
+    wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("teflon_specularLobe"), true);
+    wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("teflon_specularSpike"), true);
+    wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("teflon_backScatter"), true);
+    wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",   gConfMan.GetDouble("teflon_diffuseLobe"), true);
+
+  } else if (wrap_type == 1) { // Specular wrapper (Mylar, Teflon, or paint)
+    G4bool is_teflon = false;
+    G4bool is_paint  = false;
+    if (gConfMan.Check("is_teflon")) is_teflon = (gConfMan.GetInt("is_teflon") == 1);
+    if (gConfMan.Check("is_paint"))  is_paint  = (gConfMan.GetInt("is_paint") == 1);
+
+    surface_wrapper->SetType(dielectric_metal);
+
+    if (is_teflon) {
+      surface_wrapper->SetFinish(ground);
+      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha"));
+
+      const G4double r_scale = gConfMan.GetDouble("teflon_reflectivity_scale");
       std::vector<G4double> r_ptfe = KVC_Optical::R_PTFE_Thin;
-      // Note: In v118 original, scaling might have been 1.0. We use the config value.
-      G4double r_scale = gConfMan.GetDouble("teflon_reflectivity_scale");
-      for(auto& r : r_ptfe) r *= r_scale;
+      for (auto& r : r_ptfe) r *= r_scale;
       wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, r_ptfe);
+    } else if (is_paint) {
+      surface_wrapper->SetFinish(ground);
+      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("ej510_sigma_alpha"));
+      wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_EJ510);
+    } else {
+      // Default: aluminized Mylar
+      surface_wrapper->SetFinish(polished);
+      wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_AlMylar);
+    }
+
+  } else if (wrap_type == 2) { // EJ-510 style volume reflection (paint, or Teflon)
+    surface_wrapper->SetType(dielectric_dielectric);
+    surface_wrapper->SetFinish(groundfrontpainted);
+
+    G4bool is_teflon = false;
+    if (gConfMan.Check("is_teflon")) is_teflon = (gConfMan.GetInt("is_teflon") == 1);
+
+    if (is_teflon) {
+      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha"));
+
+      const G4double r_scale = gConfMan.GetDouble("teflon_reflectivity_scale");
+      std::vector<G4double> r_vec = KVC_Optical::R_EJ510; // Use the paint grid as the base
+      for (auto& r : r_vec) r *= r_scale;
+      wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, r_vec);
 
       wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("teflon_specularLobe"), true);
       wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("teflon_specularSpike"), true);
       wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("teflon_backScatter"), true);
-      wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",    gConfMan.GetDouble("teflon_diffuseLobe"), true);
+      wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",   gConfMan.GetDouble("teflon_diffuseLobe"), true);
+    } else {
+      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("ej510_sigma_alpha"));
 
-  } else if (wrap_type == 1) { // Specular Wrapper (Mylar, Teflon, or Paint)
-      G4bool is_teflon = false;
-      G4bool is_paint  = false;
-      if (gConfMan.Check("is_teflon")) is_teflon = (gConfMan.GetInt("is_teflon") == 1);
-      if (gConfMan.Check("is_paint"))  is_paint  = (gConfMan.GetInt("is_paint") == 1);
+      wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_EJ510);
+      wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("ej510_specularLobe"), true);
+      wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("ej510_specularSpike"), true);
+      wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("ej510_backScatter"), true);
+      wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",   gConfMan.GetDouble("ej510_diffuseLobe"), true);
+    }
 
-      surface_wrapper->SetType(dielectric_metal);
-      
-      if (is_teflon) {
-          surface_wrapper->SetFinish(ground);
-          surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha"));
-          
-          G4double r_scale = gConfMan.GetDouble("teflon_reflectivity_scale");
-          std::vector<G4double> r_ptfe = KVC_Optical::R_PTFE_Thin;
-          for(auto& r : r_ptfe) r *= r_scale;
-          wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, r_ptfe);
-      } else if (is_paint) {
-          surface_wrapper->SetFinish(ground);
-          surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("ej510_sigma_alpha"));
-          wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_EJ510);
-      } else {
-          // Default: Mylar (Seg 1)
-          surface_wrapper->SetFinish(polished);
-          wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_AlMylar);
-      }
+  } else if (wrap_type == 3) { // Transmissive Teflon
+    // Model: dielectric_dielectric + ground (rough interface).
+    // Light can enter the Teflon volume based on Fresnel / micro-facets.
+    // Requires the Teflon RINDEX and a long ABSLENGTH (set in AddOpticalProperties).
+    surface_wrapper->SetType(dielectric_dielectric);
+    surface_wrapper->SetFinish(ground);
+    surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha"));
 
-  } else if (wrap_type == 2) { // EJ-510 style Volume Reflection (used for Paint and now Teflon)
-      surface_wrapper->SetType(dielectric_dielectric);
-      surface_wrapper->SetFinish(groundfrontpainted);
-      
-      G4bool is_teflon = false;
-      if (gConfMan.Check("is_teflon")) is_teflon = (gConfMan.GetInt("is_teflon") == 1);
-
-      if (is_teflon) {
-          surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha"));
-          
-          G4double r_scale = gConfMan.GetDouble("teflon_reflectivity_scale");
-          std::vector<G4double> r_vec = KVC_Optical::R_EJ510; // Use Paint grid as base for volume model
-          for(auto& r : r_vec) r *= r_scale;
-          wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, r_vec);
-
-          wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("teflon_specularLobe"), true);
-          wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("teflon_specularSpike"), true);
-          wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("teflon_backScatter"), true);
-          wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",    gConfMan.GetDouble("teflon_diffuseLobe"), true);
-      } else {
-          surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("ej510_sigma_alpha")); 
-
-          wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_EJ510);
-          wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("ej510_specularLobe"), true);
-          wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("ej510_specularSpike"), true);
-          wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("ej510_backScatter"), true);
-          wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",    gConfMan.GetDouble("ej510_diffuseLobe"), true);
-      }
-
-  } else if (wrap_type == 3) { // Transmissive Teflon (Transmission Mode)
-      // Model: dielectric_dielectric + ground (Rough Interface)
-      // Allows light to enter the Teflon volume (Transmission) based on Fresnel/Microfacets
-      // Requires Teflon RINDEX (defined) and long ABSLENGTH (set in AddOpticalProperties).
-      surface_wrapper->SetType(dielectric_dielectric);
-      surface_wrapper->SetFinish(ground); 
-      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha")); 
-
-      // Note: Do NOT set REFLECTIVITY here. Let Fresnel handle R vs T.
-      // But we can set SigmaAlpha and Lobes for the *Surface* interaction.
-      wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("teflon_specularLobe"), true);
-      wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("teflon_specularSpike"), true);
-      wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("teflon_backScatter"), true);
-      
-      // Check Transmission? wrapper_prop->AddProperty("TRANSMITTANCE", ...) ? 
-      // For 'dielectric_dielectric', T is implicit.
+    // Do NOT set REFLECTIVITY here: Fresnel handles reflection vs transmission.
+    wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("teflon_specularLobe"), true);
+    wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("teflon_specularSpike"), true);
+    wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("teflon_backScatter"), true);
 
   } else {
-       G4Exception("DetectorConstruction::AddSurfaceProperties", "InvalidWrapType", FatalException, "wrap_type must be 0,1,2,3");
+    G4Exception("DetectorConstruction::AddSurfaceProperties", "InvalidWrapType",
+                FatalException, "wrap_type must be 0,1,2,3");
   }
 
   surface_wrapper->SetMaterialPropertiesTable(wrapper_prop);
 
-  // Assign the created wrapper surface
-  wrap_surface = surface_wrapper;
-
-  // Border Surfaces
+  // Border surfaces
   if (m_kvc_pv && m_mother_pv && m_wrap_pv) {
     if (air_layer_thickness > 0.0) {
       new G4LogicalBorderSurface("QuartzToAir", m_kvc_pv,    m_mother_pv, surface_quartz);
       new G4LogicalBorderSurface("AirToQuartz", m_mother_pv, m_kvc_pv,    surface_quartz);
-      new G4LogicalBorderSurface("AirToWrap",   m_mother_pv, m_wrap_pv,   wrap_surface);
-      new G4LogicalBorderSurface("WrapToAir",   m_wrap_pv,   m_mother_pv, wrap_surface);
+      new G4LogicalBorderSurface("AirToWrap",   m_mother_pv, m_wrap_pv,   surface_wrapper);
+      new G4LogicalBorderSurface("WrapToAir",   m_wrap_pv,   m_mother_pv, surface_wrapper);
     } else {
-      new G4LogicalBorderSurface("QuartzToWrap", m_kvc_pv,  m_wrap_pv, wrap_surface);
-      new G4LogicalBorderSurface("WrapToQuartz", m_wrap_pv, m_kvc_pv,  wrap_surface);
+      new G4LogicalBorderSurface("QuartzToWrap", m_kvc_pv,  m_wrap_pv, surface_wrapper);
+      new G4LogicalBorderSurface("WrapToQuartz", m_wrap_pv, m_kvc_pv,  surface_wrapper);
     }
   }
 
-  // BlackSheet Surface
-  auto surface_bs = new G4OpticalSurface("surface_bs", unified, ground, dielectric_metal);
-  auto bs_prop = new G4MaterialPropertiesTable();
-  bs_prop->AddProperty("REFLECTIVITY", KVC_Optical::E_Blacksheet, KVC_Optical::R_Blacksheet_REFLECTIVITY);
-  surface_bs->SetMaterialPropertiesTable(bs_prop);
-  if (m_blacksheet_lv) new G4LogicalSkinSurface("BlackSheetSurface", m_blacksheet_lv, surface_bs);
+  // Blacksheet surface
+  auto surface_blacksheet = new G4OpticalSurface("surface_bs", unified, ground, dielectric_metal);
+  auto blacksheet_prop = new G4MaterialPropertiesTable();
+  blacksheet_prop->AddProperty("REFLECTIVITY", KVC_Optical::E_Blacksheet,
+                               KVC_Optical::R_Blacksheet_REFLECTIVITY);
+  surface_blacksheet->SetMaterialPropertiesTable(blacksheet_prop);
+  if (m_blacksheet_lv) {
+    new G4LogicalSkinSurface("BlackSheetSurface", m_blacksheet_lv, surface_blacksheet);
+  }
 
-  // --- Optical boundary between Quartz and MPPC to allow Fresnel reflection ---
+  // Optical boundary between the quartz and the MPPCs for Fresnel reflection.
   // Photon detection itself is handled in MPPCSD.
-  auto mppc_lv_for_reflection = G4LogicalVolumeStore::GetInstance()->GetVolume("MppcLV", false);
-  if (mppc_lv_for_reflection) {
-      auto surface_mppc_refl = new G4OpticalSurface("surface_mppc_refl");
-      surface_mppc_refl->SetType(dielectric_dielectric);
-      surface_mppc_refl->SetFinish(polished);
-      surface_mppc_refl->SetModel(unified);
-      
-      // Note: Material properties like RINDEX are already attached to Epoxi.
-      // A bare dielectric_dielectric polished surface uses the RINDEX of the two materials
-      // (Quartz and Epoxi) to correctly calculate Fresnel reflection and transmission.
-      if (m_kvc_pv) {
-          for (size_t i = 0; i < m_mppc_pvs.size(); ++i) {
-              // Creating a border surface enables Fresnel reflection between Quartz and MPPC
-              new G4LogicalBorderSurface("QuartzToMppcRefl", m_kvc_pv, m_mppc_pvs[i], surface_mppc_refl);
-              new G4LogicalBorderSurface("MppcToQuartzRefl", m_mppc_pvs[i], m_kvc_pv, surface_mppc_refl);
-          }
+  auto mppc_lv = G4LogicalVolumeStore::GetInstance()->GetVolume("MppcLV", false);
+  if (mppc_lv) {
+    auto surface_mppc_refl = new G4OpticalSurface("surface_mppc_refl");
+    surface_mppc_refl->SetType(dielectric_dielectric);
+    surface_mppc_refl->SetFinish(polished);
+    surface_mppc_refl->SetModel(unified);
+
+    // A bare dielectric_dielectric polished surface uses the RINDEX of the two materials
+    // (quartz and epoxy) to calculate Fresnel reflection and transmission.
+    if (m_kvc_pv) {
+      for (const auto mppc_pv : m_mppc_pvs) {
+        new G4LogicalBorderSurface("QuartzToMppcRefl", m_kvc_pv, mppc_pv, surface_mppc_refl);
+        new G4LogicalBorderSurface("MppcToQuartzRefl", mppc_pv, m_kvc_pv, surface_mppc_refl);
       }
+    }
   }
 }
 
-
 //_____________________________________________________________________________
-void DetectorConstruction::DumpMaterialProperties(G4Material* mat)
+void
+DetectorConstruction::DumpMaterialProperties(G4Material* mat)
 {
 #if DEBUG
+  using CLHEP::eV;
+
   G4cout << "=== Material: " << mat->GetName() << " ===" << G4endl;
 
-  auto matPropTable = mat->GetMaterialPropertiesTable();
-  if (!matPropTable) {
+  auto mat_prop_table = mat->GetMaterialPropertiesTable();
+  if (!mat_prop_table) {
     G4cout << "No material properties table found." << G4endl;
     return;
   }
 
-  std::vector<G4String> propertyNames = {"RINDEX", "ABSLENGTH", "REFLECTIVITY"};
+  const std::vector<G4String> property_names = {"RINDEX", "ABSLENGTH", "REFLECTIVITY"};
 
-  for (const auto& prop : propertyNames) {
-    if (matPropTable->ConstPropertyExists(prop)) {
-      G4cout << prop << ": " << matPropTable->GetConstProperty(prop) << G4endl;
+  for (const auto& prop : property_names) {
+    if (mat_prop_table->ConstPropertyExists(prop)) {
+      G4cout << prop << ": " << mat_prop_table->GetConstProperty(prop) << G4endl;
     }
   }
 
-  for (const auto& prop : propertyNames) {
-    if (matPropTable->GetProperty(prop)) {
-      G4MaterialPropertyVector* mpv = matPropTable->GetProperty(prop);
+  for (const auto& prop : property_names) {
+    G4MaterialPropertyVector* mpv = mat_prop_table->GetProperty(prop);
+    if (mpv) {
       G4cout << prop << ":" << G4endl;
-      for (size_t i = 0; i < mpv->GetVectorLength(); i++) {
+      for (size_t i = 0; i < mpv->GetVectorLength(); ++i) {
         G4cout << "Energy: " << mpv->Energy(i) / eV << " eV, "
                << " Value: " << (*mpv)[i] << G4endl;
       }
     }
   }
+#else
+  (void)mat;
 #endif
 }

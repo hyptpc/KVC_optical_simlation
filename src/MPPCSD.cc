@@ -1,113 +1,120 @@
+// -*- C++ -*-
+
 #include "MPPCSD.hh"
+
+#include <G4EventManager.hh>
+#include <G4HCofThisEvent.hh>
+#include <G4OpticalPhoton.hh>
+#include <G4PhysicalConstants.hh>
+#include <G4Step.hh>
+#include <G4SystemOfUnits.hh>
+#include <G4Track.hh>
+#include <Randomize.hh>
+
+#include <TGraph.h>
+#include <TSpline.h>
+
 #include "ConfManager.hh"
 #include "KVC_OpticalProperties.hh"
-
-#include "G4SDManager.hh"
-#include "G4Step.hh"
-#include "G4Track.hh"
-#include "G4OpticalPhoton.hh"
-#include "G4HCofThisEvent.hh"
-#include "G4EventManager.hh"
-#include "Randomize.hh"
-
-#include "TGraph.h"
-#include "TSpline.h"
 
 //_____________________________________________________________________________
 MPPCSD::MPPCSD(const G4String& name)
   : G4VSensitiveDetector(name),
+    m_hits_collection(nullptr),
     m_qe_spline(nullptr),
     m_range_min(1. * CLHEP::eV),
     m_range_max(7. * CLHEP::eV),
     m_qe_scale(1.0)
 {
-    collectionName.insert("MppcCollection");
+  collectionName.insert("MppcCollection");
 
-    InitializeQESpline();
+  InitializeQESpline();
 
-    m_qe_scale = ConfManager::GetInstance().GetDouble("qe_scale");
-    if (m_qe_scale <= 0.0) m_qe_scale = 1.0;
+  m_qe_scale = ConfManager::GetInstance().GetDouble("qe_scale");
+  if (m_qe_scale <= 0.0) m_qe_scale = 1.0;
 }
 
 //_____________________________________________________________________________
-MPPCSD::~MPPCSD() {
+MPPCSD::~MPPCSD()
+{
   delete m_qe_spline;
 }
 
 //_____________________________________________________________________________
-void MPPCSD::Initialize(G4HCofThisEvent* HCTE)
+void
+MPPCSD::Initialize(G4HCofThisEvent* HCTE)
 {
   m_hits_collection = new G4THitsCollection<MPPCHit>(SensitiveDetectorName,
-						     collectionName[0]);
+                                                     collectionName[0]);
   HCTE->AddHitsCollection(GetCollectionID(0), m_hits_collection);
 }
 
 //_____________________________________________________________________________
-G4bool MPPCSD::ProcessHits(G4Step *aStep, G4TouchableHistory *ROhist)
+G4bool
+MPPCSD::ProcessHits(G4Step* aStep, G4TouchableHistory* /* ROhist */)
 {
-  const auto postStepPoint = aStep->GetPostStepPoint();  // step ends inside MPPC: use post for hit volume
-  const auto aTrack = aStep->GetTrack();
-  const auto Definition = aTrack->GetDefinition();
-  const G4int particleID = Definition->GetPDGEncoding();
-  if (Definition != G4OpticalPhoton::OpticalPhotonDefinition()) return false;
+  // The step ends inside the MPPC: use the post-step point for the hit volume
+  const auto post_step_point = aStep->GetPostStepPoint();
+  const auto track = aStep->GetTrack();
+  const auto definition = track->GetDefinition();
+  const G4int particle_id = definition->GetPDGEncoding();
+  if (definition != G4OpticalPhoton::OpticalPhotonDefinition()) return false;
 
-  G4ThreeVector worldPos = postStepPoint->GetPosition();
-  G4ThreeVector pos      = postStepPoint->GetTouchable()->GetHistory()->GetTopTransform().TransformPoint(worldPos);
-  G4double hitTime = postStepPoint->GetGlobalTime();
-  G4double energy = aTrack->GetTotalEnergy();
-  G4double waveLength = (CLHEP::h_Planck * CLHEP::c_light / energy) / CLHEP::nm;
-  G4int copyNumber = postStepPoint->GetTouchableHandle()->GetCopyNumber();
-  G4int eventID = G4EventManager::GetEventManager()->GetConstCurrentEvent()->GetEventID();
-  G4int detectFlag = 0;
+  const G4ThreeVector world_pos = post_step_point->GetPosition();
+  const G4ThreeVector local_pos = post_step_point->GetTouchable()->GetHistory()
+    ->GetTopTransform().TransformPoint(world_pos);
+  const G4double hit_time = post_step_point->GetGlobalTime();
+  const G4double energy = track->GetTotalEnergy();
+  const G4double wave_length = (CLHEP::h_Planck * CLHEP::c_light / energy) / CLHEP::nm;
+  const G4int copy_number = post_step_point->GetTouchableHandle()->GetCopyNumber();
+  const G4int event_id = G4EventManager::GetEventManager()->GetConstCurrentEvent()->GetEventID();
 
   // -- kill track -----
-  // NOTE: Optical photons entering MPPC are absorbed here regardless of QE result.
-  // Photon detection is determined by detectFlag based on QE.
-  aTrack->SetTrackStatus(fStopAndKill);
+  // Optical photons entering the MPPC are absorbed here regardless of the PDE result.
+  track->SetTrackStatus(fStopAndKill);
 
-  // -- QE check -----
+  // -- PDE check -----
   G4double eval_energy = energy;
   if      (eval_energy < m_range_min) eval_energy = m_range_min;
   else if (eval_energy > m_range_max) eval_energy = m_range_max;
 
-  G4double qe_value = m_qe_spline->Eval(eval_energy) * m_qe_scale;
-  if (qe_value > 1.0) qe_value = 1.0;
+  G4double detection_prob = m_qe_spline->Eval(eval_energy) * m_qe_scale;
+  if (detection_prob > 1.0) detection_prob = 1.0;
 
-  G4double random_value = G4UniformRand();
-  if (random_value <= qe_value) {
-    detectFlag = 1;
-  }
+  const G4bool is_detected = (G4UniformRand() <= detection_prob);
 
   // -- record -----
-  if (detectFlag == 1) {
-    MPPCHit* aHit = new MPPCHit();
-    aHit->SetPosition(pos);
-    aHit->SetWorldPosition(worldPos);
-    aHit->SetEnergy(energy);
-    aHit->SetWaveLength(waveLength);
-    aHit->SetTime(hitTime);
-    aHit->SetParticleID(particleID);
-    aHit->SetCopyNumber(copyNumber);
-    aHit->SetEventID(eventID);
-    aHit->SetDetectFlag(detectFlag);
+  if (is_detected) {
+    auto hit = new MPPCHit();
+    hit->SetPosition(local_pos);
+    hit->SetWorldPosition(world_pos);
+    hit->SetEnergy(energy);
+    hit->SetWaveLength(wave_length);
+    hit->SetTime(hit_time);
+    hit->SetParticleID(particle_id);
+    hit->SetCopyNumber(copy_number);
+    hit->SetEventID(event_id);
+    hit->SetDetectFlag(1);
 
-    m_hits_collection->insert(aHit);
+    m_hits_collection->insert(hit);
   }
 
-  
   return true;
 }
 
 //_____________________________________________________________________________
-void MPPCSD::EndOfEvent(G4HCofThisEvent*)
+void
+MPPCSD::EndOfEvent(G4HCofThisEvent* /* HCTE */)
 {
 }
 
 //_____________________________________________________________________________
-void MPPCSD::InitializeQESpline()
+void
+MPPCSD::InitializeQESpline()
 {
-  // Use PDE data from KVC_OpticalProperties.hh instead of hardcoding a redundant copy here.
-  auto graph = new TGraph(KVC_Optical::E_MPPC_PDE.size(), &KVC_Optical::E_MPPC_PDE[0], &KVC_Optical::R_MPPC_PDE[0]);
+  // Use the PDE data in KVC_OpticalProperties.hh
+  auto graph = new TGraph(KVC_Optical::E_MPPC_PDE.size(),
+                          &KVC_Optical::E_MPPC_PDE[0], &KVC_Optical::R_MPPC_PDE[0]);
   m_qe_spline = new TSpline3("qe_spline", graph);
   m_range_min = m_qe_spline->GetXmin();
   m_range_max = m_qe_spline->GetXmax();

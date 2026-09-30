@@ -1,27 +1,32 @@
-#ifndef EVENTACTION_HH
-#define EVENTACTION_HH
+// -*- C++ -*-
 
-#include "G4UserEventAction.hh"
-#include "G4Event.hh"
+#ifndef EVENT_ACTION_HH
+#define EVENT_ACTION_HH
 
-class EventAction : public G4UserEventAction {
+#include <G4Types.hh>
+#include <G4UserEventAction.hh>
 
-private: 
-    G4int fNCherenkovGen;    // Number of generated Cherenkov photons
-    G4int fNDeltaElectrons;  // Number of generated delta electrons
+class G4Event;
+
+//_____________________________________________________________________________
+class EventAction : public G4UserEventAction
+{
+public:
+  EventAction();
+  ~EventAction() override;
+
+private:
+  G4int m_n_cherenkov_gen;   // Number of generated Cherenkov photons
+  G4int m_n_delta_electrons; // Number of generated delta electrons
 
 public:
-    EventAction();
-    virtual ~EventAction();
+  void BeginOfEventAction(const G4Event* anEvent) override;
+  void EndOfEventAction(const G4Event* anEvent) override;
 
-    virtual void BeginOfEventAction(const G4Event* event);
-    virtual void EndOfEventAction(const G4Event* event);
-
-    void AddCherenkovGen() { fNCherenkovGen++; }
-    G4int GetCherenkovGen() const { return fNCherenkovGen; }
-    void AddDeltaElectron() { fNDeltaElectrons++; }
-    G4int GetDeltaElectrons() const { return fNDeltaElectrons; }
-    
+  void  AddCherenkovGen() { ++m_n_cherenkov_gen; }
+  G4int GetCherenkovGen() const { return m_n_cherenkov_gen; }
+  void  AddDeltaElectron() { ++m_n_delta_electrons; }
+  G4int GetDeltaElectrons() const { return m_n_delta_electrons; }
 };
 
 #endif

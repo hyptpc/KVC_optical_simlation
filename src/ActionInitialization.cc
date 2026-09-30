@@ -1,20 +1,23 @@
 // -*- C++ -*-
 
 #include "ActionInitialization.hh"
+
+#include "EventAction.hh"
 #include "PrimaryGeneratorAction.hh"
 #include "RunAction.hh"
-#include "EventAction.hh"
-#include "SteppingAction.hh"
 #include "StackingAction.hh"
+#include "SteppingAction.hh"
 
 //_____________________________________________________________________________
 ActionInitialization::ActionInitialization()
+  : G4VUserActionInitialization()
 {
 }
 
 //_____________________________________________________________________________
 ActionInitialization::~ActionInitialization()
-{}
+{
+}
 
 //_____________________________________________________________________________
 void

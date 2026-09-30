@@ -1,24 +1,26 @@
-#ifndef SteppingAction_h
-#define SteppingAction_h
+// -*- C++ -*-
 
-#include "G4UserSteppingAction.hh"
-#include "globals.hh"
+#ifndef STEPPING_ACTION_HH
+#define STEPPING_ACTION_HH
+
+#include <G4UserSteppingAction.hh>
 
 class G4Step;
-class G4Track;
 class G4VPhysicalVolume;
 
+//_____________________________________________________________________________
 class SteppingAction : public G4UserSteppingAction
 {
 public:
   SteppingAction();
-  virtual ~SteppingAction();
+  ~SteppingAction() override;
 
-  virtual void UserSteppingAction(const G4Step* step);
-  
+public:
+  void UserSteppingAction(const G4Step* aStep) override;
+
 private:
-  G4VPhysicalVolume* fAirVol;
-  G4VPhysicalVolume* fWrapVol;
+  G4VPhysicalVolume* m_air_pv;  // Mother volume (air layer)
+  G4VPhysicalVolume* m_wrap_pv; // Wrapper volume
 };
 
 #endif

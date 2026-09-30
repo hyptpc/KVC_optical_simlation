@@ -1,92 +1,117 @@
+// -*- C++ -*-
+
 #include "ConfManager.hh"
+
+#include <exception>
 #include <fstream>
 #include <sstream>
-#include <iostream>
-#include <stdexcept>
+#include <string>
+
+#include <G4ios.hh>
 
 //_____________________________________________________________________________
-ConfManager& ConfManager::GetInstance() {
-    static ConfManager instance;
-    return instance;
+ConfManager&
+ConfManager::GetInstance()
+{
+  static ConfManager s_instance;
+  return s_instance;
 }
 
 //_____________________________________________________________________________
-ConfManager::ConfManager() {}
-
-//_____________________________________________________________________________
-void ConfManager::Set(const std::string& key, const std::string& value) {
-    config_map[key] = value;
+ConfManager::ConfManager()
+{
 }
 
 //_____________________________________________________________________________
-bool ConfManager::Check(const std::string& key) const {
-    return config_map.find(key) != config_map.end();
+void
+ConfManager::Set(const G4String& key, const G4String& value)
+{
+  m_config_map[key] = value;
 }
 
 //_____________________________________________________________________________
-std::string ConfManager::Get(const std::string& key) const {
-    auto it = config_map.find(key);
-    if (it != config_map.end()) {
-        return it->second;
-    }
-    std::cerr << "Warning: Config key '" << key << "' not found!" << std::endl;
-    return "";
+G4bool
+ConfManager::Check(const G4String& key) const
+{
+  return m_config_map.find(key) != m_config_map.end();
 }
 
 //_____________________________________________________________________________
-double ConfManager::GetDouble(const std::string& key) const {
-    auto it = config_map.find(key);
-    if (it == config_map.end()) {
-        std::cerr << "Warning: Config key '" << key << "' not found! Using 0.0" << std::endl;
-        return 0.0;
-    }
-    try {
-        return std::stod(it->second);
-    } catch (const std::exception& e) {
-        std::cerr << "Error: Config key '" << key << "' has invalid double value '" << it->second << "': " << e.what() << std::endl;
-        throw;
-    }
+G4String
+ConfManager::Get(const G4String& key) const
+{
+  auto itr = m_config_map.find(key);
+  if (itr != m_config_map.end()) {
+    return itr->second;
+  }
+  G4cerr << "Warning: Config key '" << key << "' not found!" << G4endl;
+  return "";
 }
 
 //_____________________________________________________________________________
-int ConfManager::GetInt(const std::string& key) const {
-    auto it = config_map.find(key);
-    if (it == config_map.end()) {
-        std::cerr << "Warning: Config key '" << key << "' not found! Using 0" << std::endl;
-        return 0;
-    }
-    try {
-        return std::stoi(it->second);
-    } catch (const std::exception& e) {
-        std::cerr << "Error: Config key '" << key << "' has invalid int value '" << it->second << "': " << e.what() << std::endl;
-        throw;
-    }
+G4double
+ConfManager::GetDouble(const G4String& key) const
+{
+  auto itr = m_config_map.find(key);
+  if (itr == m_config_map.end()) {
+    G4cerr << "Warning: Config key '" << key << "' not found! Using 0.0" << G4endl;
+    return 0.0;
+  }
+  try {
+    return std::stod(itr->second);
+  } catch (const std::exception& e) {
+    G4cerr << "Error: Config key '" << key << "' has invalid double value '"
+           << itr->second << "': " << e.what() << G4endl;
+    throw;
+  }
 }
 
 //_____________________________________________________________________________
-std::string ConfManager::GetPath(const std::string& key) const {
-    std::string path = Get(key);
-    if (path.empty() || path[0] == '/') return path;
-    return conf_dir + path;
+G4int
+ConfManager::GetInt(const G4String& key) const
+{
+  auto itr = m_config_map.find(key);
+  if (itr == m_config_map.end()) {
+    G4cerr << "Warning: Config key '" << key << "' not found! Using 0" << G4endl;
+    return 0;
+  }
+  try {
+    return std::stoi(itr->second);
+  } catch (const std::exception& e) {
+    G4cerr << "Error: Config key '" << key << "' has invalid int value '"
+           << itr->second << "': " << e.what() << G4endl;
+    throw;
+  }
 }
 
 //_____________________________________________________________________________
-void ConfManager::LoadConfigFile(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file) {
-        std::cerr << "Error: Cannot open config file " << filename << std::endl;
-        return;
-    }
+G4String
+ConfManager::GetPath(const G4String& key) const
+{
+  const G4String path = Get(key);
+  if (path.empty() || path[0] == '/') return path;
+  return m_conf_dir + path;
+}
 
-    const auto slash = filename.find_last_of('/');
-    conf_dir = (slash == std::string::npos) ? "" : filename.substr(0, slash + 1);
+//_____________________________________________________________________________
+void
+ConfManager::LoadConfigFile(const G4String& filename)
+{
+  std::ifstream file(filename);
+  if (!file) {
+    G4cerr << "Error: Cannot open config file " << filename << G4endl;
+    return;
+  }
 
-    std::string line;
-    while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        std::string key, value;
-        if (iss >> key >> value) {
-            config_map[key] = value;
-        }
+  const auto slash_pos = filename.find_last_of('/');
+  m_conf_dir = (slash_pos == std::string::npos) ? "" : filename.substr(0, slash_pos + 1);
+
+  std::string line;
+  while (std::getline(file, line)) {
+    std::istringstream iss(line);
+    std::string key, value;
+    if (iss >> key >> value) {
+      m_config_map[key] = value;
     }
+  }
 }

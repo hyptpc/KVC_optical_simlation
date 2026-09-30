@@ -1,13 +1,17 @@
+// -*- C++ -*-
+
 #include "RunAction.hh"
-#include "AnaManager.hh"
 
 #include <G4Run.hh>
 #include <G4Timer.hh>
+#include <G4ios.hh>
+
+#include "AnaManager.hh"
 
 namespace
 {
-auto& gAnaMan = AnaManager::GetInstance();
-G4Timer timer;
+  auto& gAnaMan = AnaManager::GetInstance();
+  G4Timer g_timer;
 }
 
 //_____________________________________________________________________________
@@ -27,16 +31,16 @@ RunAction::BeginOfRunAction(const G4Run* aRun)
 {
   G4cout << "   Run# = " << aRun->GetRunID() << G4endl;
   gAnaMan.BeginOfRunAction(aRun);
-  timer.Start();
+  g_timer.Start();
 }
 
 //_____________________________________________________________________________
 void
 RunAction::EndOfRunAction(const G4Run* aRun)
 {
-  timer.Stop();
+  g_timer.Stop();
   gAnaMan.EndOfRunAction(aRun);
-  G4cout << "   Process end  = " << timer.GetClockTime()
-	 << "   Event number = " << aRun->GetNumberOfEvent() << G4endl
-	 << "   Elapsed time = " << timer << G4endl << G4endl;
+  G4cout << "   Process end  = " << g_timer.GetClockTime()
+         << "   Event number = " << aRun->GetNumberOfEvent() << G4endl
+         << "   Elapsed time = " << g_timer << G4endl << G4endl;
 }

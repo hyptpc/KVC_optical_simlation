@@ -1,64 +1,69 @@
+// -*- C++ -*-
+
 #ifndef MPPC_HIT_HH
 #define MPPC_HIT_HH
 
-#include "G4VHit.hh"
-#include "G4ThreeVector.hh"
-#include "G4THitsCollection.hh"
+#include <G4THitsCollection.hh>
+#include <G4ThreeVector.hh>
+#include <G4VHit.hh>
 
-class MPPCHit : public G4VHit {
+//_____________________________________________________________________________
+class MPPCHit : public G4VHit
+{
 public:
-  MPPCHit();                         // Default constructor
-  virtual ~MPPCHit();                // Destructor
-  MPPCHit(const MPPCHit& right);     // Copy constructor
+  MPPCHit();
+  ~MPPCHit() override;
+  MPPCHit(const MPPCHit& right);
 
-  // Set and get hit position (local coordinates)
-  void SetPosition(const G4ThreeVector& pos) { fPosition = pos; }
-  G4ThreeVector GetPosition() const { return fPosition; }
+public:
+  // Hit position (local coordinates of the MPPC)
+  void          SetPosition(const G4ThreeVector& pos) { m_position = pos; }
+  G4ThreeVector GetPosition() const { return m_position; }
 
-  // Set and get hit position (world coordinates)
-  void SetWorldPosition(const G4ThreeVector& pos) { fWorldPosition = pos; }
-  G4ThreeVector GetWorldPosition() const { return fWorldPosition; }
+  // Hit position (world coordinates)
+  void          SetWorldPosition(const G4ThreeVector& pos) { m_world_position = pos; }
+  G4ThreeVector GetWorldPosition() const { return m_world_position; }
 
-  // Set and get time of flight (ToF)
-  void SetTime(G4double t) { fTime = t; }
-  G4double GetTime() const { return fTime; }
+  // Global time of the hit
+  void     SetTime(G4double time) { m_time = time; }
+  G4double GetTime() const { return m_time; }
 
-  // Set and get energy of the detected photon
-  void SetEnergy(G4double e) { fEnergy = e; }
-  G4double GetEnergy() const { return fEnergy; }
+  // Energy of the detected photon
+  void     SetEnergy(G4double energy) { m_energy = energy; }
+  G4double GetEnergy() const { return m_energy; }
 
-  // Set and get energy of the detected photon
-  void SetWaveLength(G4double wl) { fWaveLength = wl; }
-  G4double GetWaveLength() const { return fWaveLength; }
+  // Wavelength of the detected photon [nm]
+  void     SetWaveLength(G4double wave_length) { m_wave_length = wave_length; }
+  G4double GetWaveLength() const { return m_wave_length; }
 
-  // Set and get particle ID
-  void SetParticleID(G4int pid) { fParticleID = pid; }
-  G4int GetParticleID() const { return fParticleID; }
+  // PDG code of the particle
+  void  SetParticleID(G4int pid) { m_particle_id = pid; }
+  G4int GetParticleID() const { return m_particle_id; }
 
-  // Set and get MPPC copy number (which MPPC was hit)
-  void SetCopyNumber(G4int cn) { fCopyNumber = cn; }
-  G4int GetCopyNumber() const { return fCopyNumber; }
+  // MPPC copy number (which MPPC was hit)
+  void  SetCopyNumber(G4int copy_number) { m_copy_number = copy_number; }
+  G4int GetCopyNumber() const { return m_copy_number; }
 
-  // Set and get event ID
-  void SetEventID(G4int id) { fEventID = id; }
-  G4int GetEventID() const { return fEventID; }
+  // Event ID
+  void  SetEventID(G4int event_id) { m_event_id = event_id; }
+  G4int GetEventID() const { return m_event_id; }
 
-  // Set and get event ID
-  void SetDetectFlag(G4int detectFlag) { fDetectFlag = detectFlag; }
-  G4int GetDetectFlag() const { return fDetectFlag; }
-  
-  void Print() const;  // Print hit details
+  // Detection flag (1: detected)
+  void  SetDetectFlag(G4int detect_flag) { m_detect_flag = detect_flag; }
+  G4int GetDetectFlag() const { return m_detect_flag; }
+
+  void Print() override;
 
 private:
-  G4ThreeVector fPosition;       // Local position of the hit
-  G4ThreeVector fWorldPosition;  // World position of the hit
-  G4double fTime;                // Time of flight (ToF)
-  G4double fEnergy;              // Photon energy
-  G4double fWaveLength;          // wave length
-  G4int fParticleID;             // Particle ID
-  G4int fCopyNumber;             // MPPC copy number
-  G4int fEventID;                // Event ID
-  G4int fDetectFlag;             // detect flag
+  G4ThreeVector m_position;       // Local position of the hit
+  G4ThreeVector m_world_position; // World position of the hit
+  G4double      m_time;           // Global time
+  G4double      m_energy;         // Photon energy
+  G4double      m_wave_length;    // Photon wavelength [nm]
+  G4int         m_particle_id;    // PDG code
+  G4int         m_copy_number;    // MPPC copy number
+  G4int         m_event_id;       // Event ID
+  G4int         m_detect_flag;    // Detection flag
 };
 
 #endif

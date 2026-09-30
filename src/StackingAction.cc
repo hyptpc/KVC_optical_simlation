@@ -1,132 +1,136 @@
+// -*- C++ -*-
+
 #include "StackingAction.hh"
 
-#include "G4VProcess.hh"
-#include "G4ParticleDefinition.hh"
-#include "G4VDiscreteProcess.hh"
-#include "G4ParticleChange.hh"
-#include "G4ParticleTypes.hh"
-#include "G4Track.hh"
-#include "G4ios.hh"
-#include "G4ClassificationOfNewTrack.hh"
+#include <G4Electron.hh>
+#include <G4EventManager.hh>
+#include <G4OpticalPhoton.hh>
+#include <G4PhysicalConstants.hh>
+#include <G4SystemOfUnits.hh>
+#include <G4Track.hh>
+#include <G4VPhysicalVolume.hh>
+#include <G4VProcess.hh>
+#include <G4ios.hh>
 
 #include "AnaManager.hh"
-
-#include "G4EventManager.hh"
 #include "EventAction.hh"
 #include "KVC_TrackInfo.hh"
 
-#include "G4SystemOfUnits.hh"      
-#include "G4PhysicalConstants.hh"  
-#include "G4Electron.hh"
+#define DEBUG 0
 
 namespace
 {
-auto& gAnaMan = AnaManager::GetInstance();
-}
+  auto& gAnaMan = AnaManager::GetInstance();
 
-#define DEBUG 0
+  //___________________________________________________________________________
+  EventAction*
+  GetEventAction()
+  {
+    return static_cast<EventAction*>(
+      G4EventManager::GetEventManager()->GetUserEventAction());
+  }
+
+  //___________________________________________________________________________
+  G4bool
+  IsInQuartz(const G4Track* track)
+  {
+    const G4VPhysicalVolume* volume = track->GetVolume();
+    return (volume && volume->GetName() == "KvcPV");
+  }
+}
 
 //_____________________________________________________________________________
 StackingAction::StackingAction()
   : G4UserStackingAction(),
-    fScintillationAll(0), fCerenkovAll(0), fCerenkovQuartz(0)
-{}
+    m_n_scintillation_all(0),
+    m_n_cerenkov_all(0),
+    m_n_cerenkov_quartz(0)
+{
+}
 
 //_____________________________________________________________________________
 StackingAction::~StackingAction()
-{}
+{
+}
 
 //_____________________________________________________________________________
 G4ClassificationOfNewTrack
-StackingAction::ClassifyNewTrack(const G4Track * aTrack)
-{    
+StackingAction::ClassifyNewTrack(const G4Track* aTrack)
+{
+  // --- Optical photons ---
+  if (aTrack->GetDefinition() == G4OpticalPhoton::OpticalPhotonDefinition() &&
+      aTrack->GetParentID() > 0) { // secondary photon
+    const auto creator = aTrack->GetCreatorProcess();
+    if (!creator) return fUrgent;
 
-  // --- Optical photon handling (existing logic) ---
-  if(aTrack->GetDefinition() == G4OpticalPhoton::OpticalPhotonDefinition()) // Focus on optical photons
-  { 
-    if(aTrack->GetParentID() > 0){ // particle is secondary
-      const auto* creator = aTrack->GetCreatorProcess();
-      if (!creator) return fUrgent;     
-
-      if(aTrack->GetCreatorProcess()->GetProcessName() == "Scintillation") // Scintillation photon
-        ++fScintillationAll;
-      else if(aTrack->GetCreatorProcess()->GetProcessName() == "Cerenkov") { // Cerenkov photon
-	      ++fCerenkovAll;
-
-	      const G4VPhysicalVolume* volume = aTrack->GetVolume(); // Current volume of the photon
+    const G4String& process_name = creator->GetProcessName();
+    if (process_name == "Scintillation") {
+      ++m_n_scintillation_all;
+    } else if (process_name == "Cerenkov") {
+      ++m_n_cerenkov_all;
 
 #if DEBUG
-        if (volume) {
-          G4cout << "Cerenkov photon generated in volume: "
-                 << volume->GetName() << G4endl;
-        } else {
-          G4cout << "Cerenkov photon generated in an unknown volume" << G4endl;
-        }
+      const G4VPhysicalVolume* volume = aTrack->GetVolume();
+      if (volume) {
+        G4cout << "Cerenkov photon generated in volume: "
+               << volume->GetName() << G4endl;
+      } else {
+        G4cout << "Cerenkov photon generated in an unknown volume" << G4endl;
+      }
 #endif
 
-        const bool in_quartz = (volume && volume->GetName() == "KvcPV");
-        const G4double E = aTrack->GetKineticEnergy();
-        if (in_quartz) {
-          ++fCerenkovQuartz;
-          gAnaMan.AddGenWavelength((CLHEP::h_Planck * CLHEP::c_light / E) / CLHEP::nm);
-        }
+      const G4bool is_in_quartz = IsInQuartz(aTrack);
+      const G4double energy = aTrack->GetKineticEnergy();
+      if (is_in_quartz) {
+        ++m_n_cerenkov_quartz;
+        gAnaMan.AddGenWavelength((CLHEP::h_Planck * CLHEP::c_light / energy) / CLHEP::nm);
+      }
 
-        constexpr G4double Emin = 1.37 * eV;
-        constexpr G4double Emax = 3.87 * eV;
+      // Energy range of photons counted as generated Cherenkov photons
+      constexpr G4double energy_min = 1.37 * eV;
+      constexpr G4double energy_max = 3.87 * eV;
 
-        if(in_quartz && E >= Emin && E < Emax ){
-          auto eventAction = static_cast<EventAction*>(
-          G4EventManager::GetEventManager()->GetUserEventAction());
-          if (eventAction) eventAction->AddCherenkovGen(); // Increment Cherenkov count
-      
-          // Tag this track as "From Quartz"
-          aTrack->SetUserInformation(new KVC_TrackInfo(true));
-        }
-    
+      if (is_in_quartz && energy >= energy_min && energy < energy_max) {
+        auto event_action = GetEventAction();
+        if (event_action) event_action->AddCherenkovGen();
+
+        // Tag this track as "From Quartz"
+        aTrack->SetUserInformation(new KVC_TrackInfo(true));
       }
     }
   }
 
-  // --- Delta electron (secondary electron) counting ---
+  // --- Delta electrons (secondary electrons from ionization) ---
   if (aTrack->GetDefinition() == G4Electron::ElectronDefinition() &&
-      aTrack->GetParentID() > 0) { // secondary electron
-    const auto* creator = aTrack->GetCreatorProcess();
+      aTrack->GetParentID() > 0) {
+    const auto creator = aTrack->GetCreatorProcess();
     if (creator) {
-      const G4String& procName = creator->GetProcessName();
-      // Ionization-induced electrons (typical process names)
-      if (procName == "eIoni" || procName == "ionIoni" || procName == "hIoni") {
-        const G4VPhysicalVolume* volume = aTrack->GetVolume();
-        const bool in_quartz = (volume && volume->GetName() == "KvcPV");
-        if (in_quartz) {
-          auto eventAction = static_cast<EventAction*>(
-            G4EventManager::GetEventManager()->GetUserEventAction());
-          if (eventAction) eventAction->AddDeltaElectron();
+      const G4String& process_name = creator->GetProcessName();
+      if (process_name == "eIoni" || process_name == "ionIoni" || process_name == "hIoni") {
+        if (IsInQuartz(aTrack)) {
+          auto event_action = GetEventAction();
+          if (event_action) event_action->AddDeltaElectron();
         }
       }
     }
   }
-  
+
   return fUrgent;
 }
 
-
 //_____________________________________________________________________________
-void StackingAction::NewStage()
+void
+StackingAction::NewStage()
 {
-  // G4cout << "Number of Scintillation photons produced in this event : "
-  // 	 << fScintillationAll << G4endl;
-  // G4cout << "Number of Cerenkov photons produced in this event : "
-  // 	 << fCerenkovAll << G4endl;
-  // G4cout << "Number of Cerenkov photons produced in Quartz : "
-  // 	 << fCerenkovQuartz << G4endl;
-  gAnaMan.SetNumOfCerenkovAll(fCerenkovAll);
-  gAnaMan.SetNumOfCerenkovQuartz(fCerenkovQuartz);
+  gAnaMan.SetNumOfCerenkovAll(m_n_cerenkov_all);
+  gAnaMan.SetNumOfCerenkovQuartz(m_n_cerenkov_quartz);
 }
 
 //_____________________________________________________________________________
-void StackingAction::PrepareNewEvent()
+void
+StackingAction::PrepareNewEvent()
 {
-  fScintillationAll = 0;
-  fCerenkovAll      = 0;
-  fCerenkovQuartz   = 0;
+  m_n_scintillation_all = 0;
+  m_n_cerenkov_all      = 0;
+  m_n_cerenkov_quartz   = 0;
 }

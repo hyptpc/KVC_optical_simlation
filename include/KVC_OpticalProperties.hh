@@ -1,9 +1,12 @@
-#ifndef KVC_OpticalProperties_h
-#define KVC_OpticalProperties_h 1
+// -*- C++ -*-
 
-#include "globals.hh"
+#ifndef KVC_OPTICAL_PROPERTIES_HH
+#define KVC_OPTICAL_PROPERTIES_HH
+
 #include <vector>
+
 #include <CLHEP/Units/SystemOfUnits.h>
+#include <G4Types.hh>
 
 namespace KVC_Optical {
   using CLHEP::eV;
@@ -428,7 +431,7 @@ namespace KVC_Optical {
   // --------------------------------------------------------------------
   // Simple Material Properties (Air, Blacksheet, Teflon bulk)
   // --------------------------------------------------------------------
-  
+
   // Air RINDEX
   static const std::vector<G4double> E_Air = { 1.3 * eV, 7.0 * eV };
   static const std::vector<G4double> R_Air_RINDEX = { 1.0, 1.0 };

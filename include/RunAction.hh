@@ -1,15 +1,22 @@
+// -*- C++ -*-
+
 #ifndef RUN_ACTION_HH
 #define RUN_ACTION_HH
 
-#include "G4UserRunAction.hh"
-#include "G4Run.hh"
+#include <G4UserRunAction.hh>
 
-class RunAction : public G4UserRunAction {
+class G4Run;
+
+//_____________________________________________________________________________
+class RunAction : public G4UserRunAction
+{
 public:
   RunAction();
-  virtual ~RunAction();
-  virtual void BeginOfRunAction(const G4Run* aRun);
-  virtual void EndOfRunAction(const G4Run* aRun);
+  ~RunAction() override;
+
+public:
+  void BeginOfRunAction(const G4Run* aRun) override;
+  void EndOfRunAction(const G4Run* aRun) override;
 };
 
 #endif

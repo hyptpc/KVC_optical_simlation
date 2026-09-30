@@ -1,36 +1,42 @@
-#ifndef PRIMARYGENERATORACTION_HH
-#define PRIMARYGENERATORACTION_HH
+// -*- C++ -*-
 
-#include "G4VUserPrimaryGeneratorAction.hh"
-#include "G4ParticleGun.hh"
-#include "G4ParticleTable.hh"
-#include "G4ThreeVector.hh"
+#ifndef PRIMARY_GENERATOR_ACTION_HH
+#define PRIMARY_GENERATOR_ACTION_HH
 
-// Forward declarations for ROOT classes
+#include <G4Types.hh>
+#include <G4VUserPrimaryGeneratorAction.hh>
+
+class G4Event;
+class G4ParticleGun;
 class TFile;
 class TTree;
 
-class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
+//_____________________________________________________________________________
+class PrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction
+{
 public:
-    PrimaryGeneratorAction();
-    ~PrimaryGeneratorAction() override;
+  PrimaryGeneratorAction();
+  ~PrimaryGeneratorAction() override;
 
-    void GeneratePrimaries(G4Event* anEvent) override;
+public:
+  void GeneratePrimaries(G4Event* anEvent) override;
 
 private:
-  G4ParticleGun* fParticleGun; // Particle gun
-  void GenerateBeam(G4Event* anEvent);
-  void GeneratePhoton(G4Event* anEvent);
-  void GenerateRootBeam(G4Event* anEvent);
+  void GenerateBeam(G4Event* anEvent);     // Particle gun (conf: particle, momentum)
+  void GeneratePhoton(G4Event* anEvent);   // Single optical photon (for tests)
+  void GenerateRootBeam(G4Event* anEvent); // Sampled from the beam file
 
-  // ROOT beam members
-  TFile* fRootFile;
-  TTree* fTree;
-  G4int  fMaxEntries;
+private:
+  G4ParticleGun* m_particle_gun;
 
-  // Branch variables
-  G4double fPx, fPy, fPz;
-  G4double fVx, fVy, fVz;
+  // ROOT beam file (conf: input_beam_file)
+  TFile* m_beam_file;
+  TTree* m_beam_tree;
+  G4int  m_n_beam_entries;
+
+  // Branch variables of the beam tree
+  G4double m_px, m_py, m_pz; // [MeV/c]
+  G4double m_vx, m_vy, m_vz; // [mm]
 };
 
 #endif

@@ -1,17 +1,21 @@
+// -*- C++ -*-
+
 #ifndef KVC_TRACK_INFO_HH
 #define KVC_TRACK_INFO_HH
 
-#include "G4VUserTrackInformation.hh"
+#include <G4VUserTrackInformation.hh>
 
-class KVC_TrackInfo : public G4VUserTrackInformation {
+//_____________________________________________________________________________
+class KVC_TrackInfo : public G4VUserTrackInformation
+{
 public:
-    KVC_TrackInfo(bool isFromQuartz) : fIsFromQuartz(isFromQuartz) {}
-    virtual ~KVC_TrackInfo() {}
+  KVC_TrackInfo(G4bool is_from_quartz) : m_is_from_quartz(is_from_quartz) {}
+  ~KVC_TrackInfo() override {}
 
-    bool IsFromQuartz() const { return fIsFromQuartz; }
+  G4bool IsFromQuartz() const { return m_is_from_quartz; }
 
 private:
-    bool fIsFromQuartz;
+  G4bool m_is_from_quartz;
 };
 
 #endif
