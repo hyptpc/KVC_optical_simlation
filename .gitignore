@@ -1,2 +1,15 @@
+# Build artifacts
 .build/
+build/
 bin/
+
+# Simulation outputs (beam input files under conf/beam/ are tracked)
+*.root
+!conf/beam/*.root
+
+# Editor / OS files
+*~
+*.swp
+.DS_Store
+.vscode/
+.cursor/
