@@ -83,7 +83,7 @@ Example conf files are placed in `conf/`:
 | `momentum`        | Beam momentum in GeV/c (used by the particle gun, i.e. when no beam file is given) |
 | `input_beam_file` | ROOT beam file, or `none` to use the particle gun (see below) |
 | `beam_y_offset`   | Offset of the beam position in y [mm] |
-| `decay`           | `1`: register decay physics, `0`: no decay |
+| `decay`           | `1`: decay physics on, `0`: decay physics removed (for all particles) |
 | `seed`            | (optional) Fixed random seed. If not given, the seed is randomized |
 
 ### Geometry
@@ -101,7 +101,7 @@ Example conf files are placed in `conf/`:
 |-----|-------------|
 | `quartz_finish` | Quartz surface finish, `0`: polished, `1`: ground |
 | `Quartz_A_Alpha`, `Quartz_B_Alpha` | `sigma_alpha` of the quartz surface for `quartz_finish` 0 and 1, respectively |
-| `quartz_specularSpike`, `quartz_specularLobe`, `quartz_backScatter`, `quartz_diffuseLobe` | Unified-model constants of the quartz surface |
+| `quartz_specularSpike`, `quartz_specularLobe`, `quartz_backScatter` | Unified-model constants of the quartz surface (the diffuse lobe is the remainder; `quartz_diffuseLobe` in the conf files is not read) |
 | `quartz_boundary_reflectivity` | Reflectivity of the quartz surface (not applied if negative) |
 | `quartz_abs_scale` | (optional) Scale factor for the quartz absorption length |
 | `wrap_type` | Wrapper model, `0`: Teflon, `1`: specular wrapper (Mylar by default, Teflon/EJ-510 reflectivity with `is_teflon 1`/`is_paint 1`), `2`: EJ-510 (volume reflection), `3`: transmissive Teflon |
@@ -129,7 +129,9 @@ Beam files used in the example conf files are placed in `conf/beam/`.
 
 ## Output
 
-The output ROOT file contains the TTree `tree` with one entry per event. Main branches:
+The output ROOT file contains the TTree `tree` with one entry per event.
+If several `/run/beamOn` are executed in one session, all events are stored in the same tree.
+Main branches:
 
 | Branch            | Description |
 |-------------------|-------------|
@@ -137,7 +139,7 @@ The output ROOT file contains the TTree `tree` with one entry per event. Main br
 | `n_cherenkov_gen` | Number of Cherenkov photons generated in the quartz (1.37-3.87 eV) |
 | `n_delta_e`       | Number of delta electrons generated in the quartz |
 | `beam_*`          | Energy, momentum and position of the primary particle |
-| `nhit_mppc`       | Number of photon hits on the MPPCs |
+| `nhit_mppc`       | Number of MPPC hits (only detected photons are stored, so it equals `npe`) |
 | `seg`, `detect_flag`, `wave_length`, `time`, `pos_*` | Information of each MPPC hit |
 
 See `src/AnaManager.cc` for the full list of branches.
