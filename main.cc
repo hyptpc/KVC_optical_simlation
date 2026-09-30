@@ -10,7 +10,7 @@
 #include "G4UIExecutive.hh"
 #include "G4UImanager.hh"
 #include "G4VisExecutive.hh"
-#include "G4DecayPhysics.hh"
+#include "G4BuilderType.hh"
 
 #include <random>
 
@@ -65,7 +65,9 @@ int main(int argc, char** argv)
   physicsList->ReplacePhysics(new G4EmStandardPhysics_option4());
   auto opticalPhysics = new G4OpticalPhysics();
   physicsList->RegisterPhysics(opticalPhysics);
-  if (gConfMan.GetInt("decay") == 1) physicsList->RegisterPhysics(new G4DecayPhysics());
+  // Decay physics (G4DecayPhysics) is already included in QGSP_BERT.
+  // Remove it when decay is disabled in the conf file (decay 0).
+  if (gConfMan.GetInt("decay") == 0) physicsList->RemovePhysics(bDecay);
   runManager->SetUserInitialization(physicsList);
 
   // G4Cerenkov setting
