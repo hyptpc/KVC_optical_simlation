@@ -29,6 +29,36 @@
 namespace
 {
   auto& gConfMan = ConfManager::GetInstance();
+
+  //___________________________________________________________________________
+  // Set the unified-model parameters of an optical surface from the conf keys
+  //   <material>_sigma_alpha, <material>_specularSpike, <material>_specularLobe,
+  //   <material>_backScatter, <material>_diffuseLobe
+  // in the same format for every surface. Depending on the surface type and
+  // finish, Geant4 ignores some of them (see README).
+  // - The three probabilities are registered as (constant) vector properties,
+  //   which is how G4OpBoundaryProcess reads them.
+  // - The diffuse lobe is the remainder 1 - (spike + lobe + backscatter);
+  //   DIFFUSELOBECONSTANT is not a Geant4 property and is not read.
+  void
+  SetUnifiedParameters(G4OpticalSurface* surface, G4MaterialPropertiesTable* prop,
+                       const G4String& material)
+  {
+    surface->SetSigmaAlpha(gConfMan.GetDouble(material + "_sigma_alpha"));
+
+    const auto& energy = KVC_Optical::E_Unified_Surface;
+    const auto constant = [&energy](G4double value) {
+      return std::vector<G4double>(energy.size(), value);
+    };
+    prop->AddProperty("SPECULARSPIKECONSTANT", energy,
+                      constant(gConfMan.GetDouble(material + "_specularSpike")));
+    prop->AddProperty("SPECULARLOBECONSTANT", energy,
+                      constant(gConfMan.GetDouble(material + "_specularLobe")));
+    prop->AddProperty("BACKSCATTERCONSTANT", energy,
+                      constant(gConfMan.GetDouble(material + "_backScatter")));
+    prop->AddConstProperty("DIFFUSELOBECONSTANT",
+                           gConfMan.GetDouble(material + "_diffuseLobe"), true);
+  }
 }
 
 //_____________________________________________________________________________
@@ -529,13 +559,17 @@ DetectorConstruction::AddSurfaceProperties()
   } else {
     surface_quartz->SetFinish(polished);
   }
-  surface_quartz->SetSigmaAlpha(quartz_sigma_alpha);
 
   auto quartz_prop = new G4MaterialPropertiesTable();
   const std::vector<G4double> e_surface = KVC_Optical::E_Unified_Surface;
-  quartz_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("quartz_specularLobe"), true);
-  quartz_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("quartz_specularSpike"), true);
-  quartz_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("quartz_backScatter"), true);
+  const auto RegisterQuartzConstant = [&](const G4String& name, const G4String& key) {
+    quartz_prop->AddProperty(name, e_surface, std::vector<G4double>(e_surface.size(), gConfMan.GetDouble(key)));
+  };
+  // The quartz sigma_alpha is selected by quartz_finish (Quartz_A_Alpha / Quartz_B_Alpha)
+  surface_quartz->SetSigmaAlpha(quartz_sigma_alpha);
+  RegisterQuartzConstant("SPECULARSPIKECONSTANT", "quartz_specularSpike");
+  RegisterQuartzConstant("SPECULARLOBECONSTANT",  "quartz_specularLobe");
+  RegisterQuartzConstant("BACKSCATTERCONSTANT",   "quartz_backScatter");
 
   const G4double quartz_reflectivity = gConfMan.GetDouble("quartz_boundary_reflectivity");
   if (quartz_reflectivity >= 0.0) {
@@ -550,32 +584,26 @@ DetectorConstruction::AddSurfaceProperties()
   surface_wrapper->SetModel(unified);
   auto wrapper_prop = new G4MaterialPropertiesTable();
 
+  // Material whose conf keys (<material>_sigma_alpha, ...) are used for the wrapper surface
+  const G4bool is_teflon = gConfMan.Check("is_teflon") && gConfMan.GetInt("is_teflon") == 1;
+  const G4bool is_paint  = gConfMan.Check("is_paint")  && gConfMan.GetInt("is_paint")  == 1;
+
   if (wrap_type == 0) { // Teflon
     surface_wrapper->SetType(dielectric_dielectric);
     surface_wrapper->SetFinish(groundfrontpainted);
-    surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha"));
+    SetUnifiedParameters(surface_wrapper, wrapper_prop, "teflon");
 
     std::vector<G4double> r_ptfe = KVC_Optical::R_PTFE_Thin;
     const G4double r_scale = gConfMan.GetDouble("teflon_reflectivity_scale");
     for (auto& r : r_ptfe) r *= r_scale;
     wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, r_ptfe);
 
-    wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("teflon_specularLobe"), true);
-    wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("teflon_specularSpike"), true);
-    wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("teflon_backScatter"), true);
-    wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",   gConfMan.GetDouble("teflon_diffuseLobe"), true);
-
   } else if (wrap_type == 1) { // Specular wrapper (Mylar, Teflon, or paint)
-    G4bool is_teflon = false;
-    G4bool is_paint  = false;
-    if (gConfMan.Check("is_teflon")) is_teflon = (gConfMan.GetInt("is_teflon") == 1);
-    if (gConfMan.Check("is_paint"))  is_paint  = (gConfMan.GetInt("is_paint") == 1);
-
     surface_wrapper->SetType(dielectric_metal);
 
     if (is_teflon) {
       surface_wrapper->SetFinish(ground);
-      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha"));
+      SetUnifiedParameters(surface_wrapper, wrapper_prop, "teflon");
 
       const G4double r_scale = gConfMan.GetDouble("teflon_reflectivity_scale");
       std::vector<G4double> r_ptfe = KVC_Optical::R_PTFE_Thin;
@@ -583,10 +611,10 @@ DetectorConstruction::AddSurfaceProperties()
       wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, r_ptfe);
     } else if (is_paint) {
       surface_wrapper->SetFinish(ground);
-      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("ej510_sigma_alpha"));
+      SetUnifiedParameters(surface_wrapper, wrapper_prop, "ej510");
       wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_EJ510);
     } else {
-      // Default: aluminized Mylar
+      // Default: aluminized Mylar (polished mirror, no tunable surface parameters)
       surface_wrapper->SetFinish(polished);
       wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_AlMylar);
     }
@@ -595,43 +623,26 @@ DetectorConstruction::AddSurfaceProperties()
     surface_wrapper->SetType(dielectric_dielectric);
     surface_wrapper->SetFinish(groundfrontpainted);
 
-    G4bool is_teflon = false;
-    if (gConfMan.Check("is_teflon")) is_teflon = (gConfMan.GetInt("is_teflon") == 1);
-
     if (is_teflon) {
-      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha"));
+      SetUnifiedParameters(surface_wrapper, wrapper_prop, "teflon");
 
       const G4double r_scale = gConfMan.GetDouble("teflon_reflectivity_scale");
       std::vector<G4double> r_vec = KVC_Optical::R_EJ510; // Use the paint grid as the base
       for (auto& r : r_vec) r *= r_scale;
       wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, r_vec);
-
-      wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("teflon_specularLobe"), true);
-      wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("teflon_specularSpike"), true);
-      wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("teflon_backScatter"), true);
-      wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",   gConfMan.GetDouble("teflon_diffuseLobe"), true);
     } else {
-      surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("ej510_sigma_alpha"));
-
+      SetUnifiedParameters(surface_wrapper, wrapper_prop, "ej510");
       wrapper_prop->AddProperty("REFLECTIVITY", KVC_Optical::Energy, KVC_Optical::R_EJ510);
-      wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("ej510_specularLobe"), true);
-      wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("ej510_specularSpike"), true);
-      wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("ej510_backScatter"), true);
-      wrapper_prop->AddConstProperty("DIFFUSELOBECONSTANT",   gConfMan.GetDouble("ej510_diffuseLobe"), true);
     }
 
   } else if (wrap_type == 3) { // Transmissive Teflon
     // Model: dielectric_dielectric + ground (rough interface).
     // Light can enter the Teflon volume based on Fresnel / micro-facets.
     // Requires the Teflon RINDEX and a long ABSLENGTH (set in AddOpticalProperties).
+    // Do NOT set REFLECTIVITY here: Fresnel handles reflection vs transmission.
     surface_wrapper->SetType(dielectric_dielectric);
     surface_wrapper->SetFinish(ground);
-    surface_wrapper->SetSigmaAlpha(gConfMan.GetDouble("teflon_sigma_alpha"));
-
-    // Do NOT set REFLECTIVITY here: Fresnel handles reflection vs transmission.
-    wrapper_prop->AddConstProperty("SPECULARLOBECONSTANT",  gConfMan.GetDouble("teflon_specularLobe"), true);
-    wrapper_prop->AddConstProperty("SPECULARSPIKECONSTANT", gConfMan.GetDouble("teflon_specularSpike"), true);
-    wrapper_prop->AddConstProperty("BACKSCATTERCONSTANT",   gConfMan.GetDouble("teflon_backScatter"), true);
+    SetUnifiedParameters(surface_wrapper, wrapper_prop, "teflon");
 
   } else {
     G4Exception("DetectorConstruction::AddSurfaceProperties", "InvalidWrapType",

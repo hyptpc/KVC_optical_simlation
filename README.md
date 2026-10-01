@@ -101,13 +101,35 @@ Example conf files are placed in `conf/`:
 |-----|-------------|
 | `quartz_finish` | Quartz surface finish, `0`: polished, `1`: ground |
 | `Quartz_A_Alpha`, `Quartz_B_Alpha` | `sigma_alpha` of the quartz surface for `quartz_finish` 0 and 1, respectively |
-| `quartz_specularSpike`, `quartz_specularLobe`, `quartz_backScatter` | Unified-model constants of the quartz surface (the diffuse lobe is the remainder; `quartz_diffuseLobe` in the conf files is not read) |
+| `quartz_specularSpike`, `quartz_specularLobe`, `quartz_backScatter`, `quartz_diffuseLobe` | Unified-model constants of the quartz surface |
 | `quartz_boundary_reflectivity` | Reflectivity of the quartz surface (not applied if negative) |
 | `quartz_abs_scale` | (optional) Scale factor for the quartz absorption length |
 | `wrap_type` | Wrapper model, `0`: Teflon, `1`: specular wrapper (Mylar by default, Teflon/EJ-510 reflectivity with `is_teflon 1`/`is_paint 1`), `2`: EJ-510 (volume reflection), `3`: transmissive Teflon |
-| `teflon_*` | Parameters of the Teflon wrapper (`sigma_alpha`, reflectivity scale, unified-model constants) |
+| `teflon_*` | Parameters of the Teflon wrapper (`sigma_alpha`, unified-model constants, `teflon_reflectivity_scale`) |
 | `ej510_*` | Parameters of the EJ-510 wrapper (`sigma_alpha`, unified-model constants) |
 | `qe_scale` | Scale factor for the MPPC photon detection efficiency |
+
+Each surface takes its parameters in the same format,
+`<material>_sigma_alpha` (for the quartz: `Quartz_A_Alpha` / `Quartz_B_Alpha`),
+`<material>_specularSpike`, `<material>_specularLobe`, `<material>_backScatter` and `<material>_diffuseLobe`,
+with `<material>` = `quartz`, `teflon` or `ej510`.
+All of them are passed to Geant4 in the same way, but depending on the surface model
+Geant4 ignores some of them:
+
+| Surface | Geant4 model | Used | Ignored |
+|---------|--------------|------|---------|
+| Quartz, `quartz_finish 0` | `dielectric_dielectric`, `polished` | `quartz_boundary_reflectivity` | `Quartz_A_Alpha`, unified-model constants |
+| Quartz, `quartz_finish 1` | `dielectric_dielectric`, `ground` | `Quartz_B_Alpha`, unified-model constants, `quartz_boundary_reflectivity` | - |
+| `wrap_type 0` (Teflon) | `dielectric_dielectric`, `groundfrontpainted` | reflectivity (`teflon_reflectivity_scale`) | `teflon_sigma_alpha`, unified-model constants |
+| `wrap_type 1` (Mylar) | `dielectric_metal`, `polished` | reflectivity (aluminized Mylar) | (no keys) |
+| `wrap_type 1` with `is_teflon 1` / `is_paint 1` | `dielectric_metal`, `ground` | `teflon_*` / `ej510_*` sigma_alpha and unified-model constants, reflectivity | - |
+| `wrap_type 2` (EJ-510, or Teflon with `is_teflon 1`) | `dielectric_dielectric`, `groundfrontpainted` | reflectivity | sigma_alpha, unified-model constants |
+| `wrap_type 3` (transmissive Teflon) | `dielectric_dielectric`, `ground` | `teflon_sigma_alpha`, unified-model constants | (no reflectivity: Fresnel) |
+
+Notes:
+- A front-painted surface reflects with probability given by the reflectivity, always as Lambertian (diffuse) reflection.
+- In the unified model the diffuse lobe is the remainder 1 - (spike + lobe + backscatter); `*_diffuseLobe` is not read by Geant4.
+- The quartz surface is applied to the quartz-air boundary, i.e. only when `air_layer_thickness > 0`.
 
 See `src/DetectorConstruction.cc` for the details of each wrapper model.
 
