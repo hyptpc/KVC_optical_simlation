@@ -163,7 +163,7 @@ Main branches:
 | `n_cherenkov_gen` | Number of Cherenkov photons generated in the quartz (1.37-3.87 eV) |
 | `n_delta_e`       | Number of delta electrons generated in the quartz |
 | `beam_*`          | Energy, momentum and position of the primary particle |
-| `nhit_mppc`       | Number of MPPC hits (only detected photons are stored, so it equals `npe`) |
-| `seg`, `detect_flag`, `wave_length`, `time`, `pos_*` | Information of each MPPC hit |
+| `nhit_mppc`       | Number of photons reaching the MPPCs (detected or not) |
+| `seg`, `detect_flag`, `wave_length`, `time`, `pos_*` | Information of each photon reaching the MPPCs (`detect_flag`: 1 if detected, 0 otherwise) |
 
 See `src/AnaManager.cc` for the full list of branches.

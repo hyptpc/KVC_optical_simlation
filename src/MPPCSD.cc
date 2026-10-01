@@ -84,20 +84,19 @@ MPPCSD::ProcessHits(G4Step* aStep, G4TouchableHistory* /* ROhist */)
   const G4bool is_detected = (G4UniformRand() <= detection_prob);
 
   // -- record -----
-  if (is_detected) {
-    auto hit = new MPPCHit();
-    hit->SetPosition(local_pos);
-    hit->SetWorldPosition(world_pos);
-    hit->SetEnergy(energy);
-    hit->SetWaveLength(wave_length);
-    hit->SetTime(hit_time);
-    hit->SetParticleID(particle_id);
-    hit->SetCopyNumber(copy_number);
-    hit->SetEventID(event_id);
-    hit->SetDetectFlag(1);
+  // Every photon reaching the MPPC is stored; detect_flag tells whether it was detected.
+  auto hit = new MPPCHit();
+  hit->SetPosition(local_pos);
+  hit->SetWorldPosition(world_pos);
+  hit->SetEnergy(energy);
+  hit->SetWaveLength(wave_length);
+  hit->SetTime(hit_time);
+  hit->SetParticleID(particle_id);
+  hit->SetCopyNumber(copy_number);
+  hit->SetEventID(event_id);
+  hit->SetDetectFlag(is_detected ? 1 : 0);
 
-    m_hits_collection->insert(hit);
-  }
+  m_hits_collection->insert(hit);
 
   return true;
 }
