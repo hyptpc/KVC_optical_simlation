@@ -129,6 +129,7 @@ Geant4 ignores some of them:
 Notes:
 - A front-painted surface reflects with probability given by the reflectivity, always as Lambertian (diffuse) reflection.
 - In the unified model the diffuse lobe is the remainder 1 - (spike + lobe + backscatter); `*_diffuseLobe` is not read by Geant4.
+  If spike + lobe + backscatter + diffuse of a surface in use is not 1, a warning (`UnifiedConstantsSum`) is printed at start-up.
 - The quartz surface is applied to the quartz-air boundary, i.e. only when `air_layer_thickness > 0`.
 
 See `src/DetectorConstruction.cc` for the details of each wrapper model.

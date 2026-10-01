@@ -2,6 +2,8 @@
 
 #include "DetectorConstruction.hh"
 
+#include <cmath>
+#include <sstream>
 #include <vector>
 
 #include <G4Box.hh>
@@ -31,33 +33,57 @@ namespace
   auto& gConfMan = ConfManager::GetInstance();
 
   //___________________________________________________________________________
-  // Set the unified-model parameters of an optical surface from the conf keys
-  //   <material>_sigma_alpha, <material>_specularSpike, <material>_specularLobe,
+  // Register the unified-model constants of an optical surface from the conf keys
+  //   <material>_specularSpike, <material>_specularLobe,
   //   <material>_backScatter, <material>_diffuseLobe
-  // in the same format for every surface. Depending on the surface type and
-  // finish, Geant4 ignores some of them (see README).
   // - The three probabilities are registered as (constant) vector properties,
   //   which is how G4OpBoundaryProcess reads them.
   // - The diffuse lobe is the remainder 1 - (spike + lobe + backscatter);
   //   DIFFUSELOBECONSTANT is not a Geant4 property and is not read.
+  //   If the four values do not sum to 1, a warning is issued.
   void
-  SetUnifiedParameters(G4OpticalSurface* surface, G4MaterialPropertiesTable* prop,
-                       const G4String& material)
+  RegisterUnifiedConstants(G4MaterialPropertiesTable* prop, const G4String& material)
   {
-    surface->SetSigmaAlpha(gConfMan.GetDouble(material + "_sigma_alpha"));
+    const G4double spike   = gConfMan.GetDouble(material + "_specularSpike");
+    const G4double lobe    = gConfMan.GetDouble(material + "_specularLobe");
+    const G4double back    = gConfMan.GetDouble(material + "_backScatter");
+    const G4double diffuse = gConfMan.GetDouble(material + "_diffuseLobe");
 
     const auto& energy = KVC_Optical::E_Unified_Surface;
     const auto constant = [&energy](G4double value) {
       return std::vector<G4double>(energy.size(), value);
     };
-    prop->AddProperty("SPECULARSPIKECONSTANT", energy,
-                      constant(gConfMan.GetDouble(material + "_specularSpike")));
-    prop->AddProperty("SPECULARLOBECONSTANT", energy,
-                      constant(gConfMan.GetDouble(material + "_specularLobe")));
-    prop->AddProperty("BACKSCATTERCONSTANT", energy,
-                      constant(gConfMan.GetDouble(material + "_backScatter")));
-    prop->AddConstProperty("DIFFUSELOBECONSTANT",
-                           gConfMan.GetDouble(material + "_diffuseLobe"), true);
+    prop->AddProperty("SPECULARSPIKECONSTANT", energy, constant(spike));
+    prop->AddProperty("SPECULARLOBECONSTANT", energy, constant(lobe));
+    prop->AddProperty("BACKSCATTERCONSTANT", energy, constant(back));
+    prop->AddConstProperty("DIFFUSELOBECONSTANT", diffuse, true);
+
+    constexpr G4double tolerance = 1.e-6;
+    const G4double sum = spike + lobe + back + diffuse;
+    if (std::abs(sum - 1.0) > tolerance) {
+      std::ostringstream message;
+      message << "Sum of the " << material << " unified-model constants"
+              << " (specularSpike + specularLobe + backScatter + diffuseLobe) is "
+              << sum << ", not 1." << G4endl
+              << "Geant4 uses the diffuse lobe = 1 - (specularSpike + specularLobe + backScatter) = "
+              << 1.0 - (spike + lobe + back) << " (" << material << "_diffuseLobe = "
+              << diffuse << " is not used).";
+      G4Exception("DetectorConstruction::AddSurfaceProperties", "UnifiedConstantsSum",
+                  JustWarning, message);
+    }
+  }
+
+  //___________________________________________________________________________
+  // Set the unified-model parameters of an optical surface from the conf keys
+  //   <material>_sigma_alpha and the unified-model constants (see above)
+  // in the same format for every surface. Depending on the surface type and
+  // finish, Geant4 ignores some of them (see README).
+  void
+  SetUnifiedParameters(G4OpticalSurface* surface, G4MaterialPropertiesTable* prop,
+                       const G4String& material)
+  {
+    surface->SetSigmaAlpha(gConfMan.GetDouble(material + "_sigma_alpha"));
+    RegisterUnifiedConstants(prop, material);
   }
 }
 
@@ -562,14 +588,9 @@ DetectorConstruction::AddSurfaceProperties()
 
   auto quartz_prop = new G4MaterialPropertiesTable();
   const std::vector<G4double> e_surface = KVC_Optical::E_Unified_Surface;
-  const auto RegisterQuartzConstant = [&](const G4String& name, const G4String& key) {
-    quartz_prop->AddProperty(name, e_surface, std::vector<G4double>(e_surface.size(), gConfMan.GetDouble(key)));
-  };
   // The quartz sigma_alpha is selected by quartz_finish (Quartz_A_Alpha / Quartz_B_Alpha)
   surface_quartz->SetSigmaAlpha(quartz_sigma_alpha);
-  RegisterQuartzConstant("SPECULARSPIKECONSTANT", "quartz_specularSpike");
-  RegisterQuartzConstant("SPECULARLOBECONSTANT",  "quartz_specularLobe");
-  RegisterQuartzConstant("BACKSCATTERCONSTANT",   "quartz_backScatter");
+  RegisterUnifiedConstants(quartz_prop, "quartz");
 
   const G4double quartz_reflectivity = gConfMan.GetDouble("quartz_boundary_reflectivity");
   if (quartz_reflectivity >= 0.0) {
