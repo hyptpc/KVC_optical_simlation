@@ -33,6 +33,7 @@ private:
   G4VPhysicalVolume*              m_kvc_pv;
   G4VPhysicalVolume*              m_wrap_pv;
   std::vector<G4VPhysicalVolume*> m_mppc_pvs;
+  std::vector<G4VPhysicalVolume*> m_gap_pvs;  // Air gap slabs (only if air_layer_thickness > 0)
   G4bool                          m_check_overlaps;
 
 private:

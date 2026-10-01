@@ -99,6 +99,7 @@ DetectorConstruction::DetectorConstruction()
     m_kvc_pv(nullptr),
     m_wrap_pv(nullptr),
     m_mppc_pvs(),
+    m_gap_pvs(),
     m_check_overlaps(true)
 {
 }
@@ -495,6 +496,26 @@ DetectorConstruction::ConstructKVC()
                                 m_mother_lv, false, 0, m_check_overlaps);
   wrap_lv->SetVisAttributes(G4Colour::White());
 
+  // Air gap between the quartz and the wrapper, made of four slabs (x and z sides), so
+  // that the upper / lower (y) end faces of the quartz touch the mother volume directly
+  // and can have a different optical surface (see AddSurfaceProperties).
+  if (air_layer_thickness > 0.0) {
+    auto gap_x_solid = new G4Box("AirGapXSolid", air_layer_thickness/2.0, kvc_size.y()/2.0,
+                                 kvc_size.z()/2.0 + air_layer_thickness);
+    auto gap_z_solid = new G4Box("AirGapZSolid", kvc_size.x()/2.0, kvc_size.y()/2.0,
+                                 air_layer_thickness/2.0);
+    auto gap_x_lv = new G4LogicalVolume(gap_x_solid, m_material_map["Air"], "AirGapXLV");
+    auto gap_z_lv = new G4LogicalVolume(gap_z_solid, m_material_map["Air"], "AirGapZLV");
+    gap_x_lv->SetVisAttributes(G4VisAttributes::GetInvisible());
+    gap_z_lv->SetVisAttributes(G4VisAttributes::GetInvisible());
+    const G4double gap_x_pos = kvc_size.x()/2.0 + air_layer_thickness/2.0;
+    const G4double gap_z_pos = kvc_size.z()/2.0 + air_layer_thickness/2.0;
+    m_gap_pvs.push_back(new G4PVPlacement(nullptr, G4ThreeVector( gap_x_pos, 0., 0.), gap_x_lv, "AirGapPV", m_mother_lv, false, 0, m_check_overlaps));
+    m_gap_pvs.push_back(new G4PVPlacement(nullptr, G4ThreeVector(-gap_x_pos, 0., 0.), gap_x_lv, "AirGapPV", m_mother_lv, false, 1, m_check_overlaps));
+    m_gap_pvs.push_back(new G4PVPlacement(nullptr, G4ThreeVector(0., 0.,  gap_z_pos), gap_z_lv, "AirGapPV", m_mother_lv, false, 2, m_check_overlaps));
+    m_gap_pvs.push_back(new G4PVPlacement(nullptr, G4ThreeVector(0., 0., -gap_z_pos), gap_z_lv, "AirGapPV", m_mother_lv, false, 3, m_check_overlaps));
+  }
+
   // MPPC
   const G4ThreeVector mppc_size(6.0*mm, 6.0*mm, 1.0*mm);
   auto mppc_solid = new G4Box("MppcSolid", mppc_size.x()/2.0, mppc_size.y()/2.0, mppc_size.z()/2.0);
@@ -575,7 +596,7 @@ DetectorConstruction::AddSurfaceProperties()
     quartz_sigma_alpha = gConfMan.GetDouble("sigma_alpha");
   }
 
-  // Quartz surface (used ONLY for Quartz-Air boundaries;
+  // Quartz surface (used ONLY for the quartz-air gap boundaries;
   // the Quartz-MPPC boundary uses surface_mppc_refl below, i.e. polished / mirror-like)
   auto surface_quartz = new G4OpticalSurface("surface_quartz");
   surface_quartz->SetModel(unified);
@@ -599,6 +620,19 @@ DetectorConstruction::AddSurfaceProperties()
   }
 
   surface_quartz->SetMaterialPropertiesTable(quartz_prop);
+
+  // Upper / lower (y) end faces of the quartz (MPPC side): always polished, also for the
+  // frosted quartz B
+  auto surface_quartz_end = new G4OpticalSurface("surface_quartz_end");
+  surface_quartz_end->SetModel(unified);
+  surface_quartz_end->SetType(dielectric_dielectric);
+  surface_quartz_end->SetFinish(polished);
+  auto quartz_end_prop = new G4MaterialPropertiesTable();
+  if (quartz_reflectivity >= 0.0) {
+    quartz_end_prop->AddProperty("REFLECTIVITY", e_surface,
+                                 std::vector<G4double>{quartz_reflectivity, quartz_reflectivity});
+  }
+  surface_quartz_end->SetMaterialPropertiesTable(quartz_end_prop);
 
   // Wrapper surface (Teflon, Mylar, EJ-510), selected by wrap_type
   auto surface_wrapper = new G4OpticalSurface("surface_wrapper");
@@ -674,9 +708,16 @@ DetectorConstruction::AddSurfaceProperties()
 
   // Border surfaces
   if (m_kvc_pv && m_mother_pv && m_wrap_pv) {
+    // End faces of the quartz (outside the MPPCs) <-> air: polished
+    new G4LogicalBorderSurface("QuartzToAir", m_kvc_pv,    m_mother_pv, surface_quartz_end);
+    new G4LogicalBorderSurface("AirToQuartz", m_mother_pv, m_kvc_pv,    surface_quartz_end);
     if (air_layer_thickness > 0.0) {
-      new G4LogicalBorderSurface("QuartzToAir", m_kvc_pv,    m_mother_pv, surface_quartz);
-      new G4LogicalBorderSurface("AirToQuartz", m_mother_pv, m_kvc_pv,    surface_quartz);
+      for (const auto gap_pv : m_gap_pvs) {
+        new G4LogicalBorderSurface("QuartzToGap", m_kvc_pv, gap_pv,    surface_quartz);
+        new G4LogicalBorderSurface("GapToQuartz", gap_pv,   m_kvc_pv,  surface_quartz);
+        new G4LogicalBorderSurface("GapToWrap",   gap_pv,   m_wrap_pv, surface_wrapper);
+        new G4LogicalBorderSurface("WrapToGap",   m_wrap_pv, gap_pv,   surface_wrapper);
+      }
       new G4LogicalBorderSurface("AirToWrap",   m_mother_pv, m_wrap_pv,   surface_wrapper);
       new G4LogicalBorderSurface("WrapToAir",   m_wrap_pv,   m_mother_pv, surface_wrapper);
     } else {
