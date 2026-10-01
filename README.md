@@ -85,6 +85,7 @@ Example conf files are placed in `conf/`:
 | `beam_y_offset`   | Offset of the beam position in y [mm] |
 | `decay`           | `1`: decay physics on, `0`: decay physics removed (for all particles) |
 | `seed`            | (optional) Fixed random seed. If not given, the seed is randomized |
+| `production_cut`  | Production cut (range) in mm for all particles (default 0.1 mm, e- threshold ~135 keV in quartz) |
 
 ### Geometry
 

@@ -7,6 +7,7 @@
 #include <G4OpticalParameters.hh>
 #include <G4OpticalPhysics.hh>
 #include <G4RunManager.hh>
+#include <G4SystemOfUnits.hh>
 #include <G4UIExecutive.hh>
 #include <G4UImanager.hh>
 #include <G4VisExecutive.hh>
@@ -75,6 +76,14 @@ main(int argc, char** argv)
   // Decay physics (G4DecayPhysics) is already included in QGSP_BERT.
   // Remove it when decay is disabled in the conf file (decay 0).
   if (gConfMan.GetInt("decay") == 0) physics_list->RemovePhysics(bDecay);
+  // Production cut (range) for all particles; 0.1 mm if not given in the conf file.
+  // 0.1 mm corresponds to an e- threshold of ~135 keV in quartz, below the
+  // Cherenkov threshold of electrons (~0.19 MeV), so that delta rays emitting
+  // Cherenkov light are produced.
+  const G4double production_cut =
+    (gConfMan.Check("production_cut") ? gConfMan.GetDouble("production_cut") : 0.1) * mm;
+  physics_list->SetDefaultCutValue(production_cut);
+  G4cout << "Production cut: " << production_cut / mm << " mm" << G4endl;
   run_manager->SetUserInitialization(physics_list);
 
   // Optical parameters (Cherenkov)
