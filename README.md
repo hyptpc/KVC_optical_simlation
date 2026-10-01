@@ -100,7 +100,7 @@ Example conf files are placed in `conf/`:
 | Key | Description |
 |-----|-------------|
 | `quartz_finish` | Quartz surface finish, `0`: polished, `1`: ground |
-| `Quartz_A_Alpha`, `Quartz_B_Alpha` | `sigma_alpha` of the quartz surface for `quartz_finish` 0 and 1, respectively |
+| `Quartz_A_Alpha`, `Quartz_B_Alpha` | `sigma_alpha` of the quartz surface for quartz A (normal, polished; `quartz_finish 0`) and quartz B (frosted; `quartz_finish 1`), respectively |
 | `quartz_specularSpike`, `quartz_specularLobe`, `quartz_backScatter`, `quartz_diffuseLobe` | Unified-model constants of the quartz surface |
 | `quartz_boundary_reflectivity` | Reflectivity of the quartz surface (not applied if negative) |
 | `quartz_abs_scale` | (optional) Scale factor for the quartz absorption length |
