@@ -50,7 +50,7 @@ private:
   G4int m_n_cherenkov_gen;   // Number of generated Cherenkov photons
   G4int m_n_delta_electrons; // Number of generated delta electrons
   G4int m_npe;               // Number of detected photoelectrons
-  G4int m_n_trapped_air;     // Number of photons lost in the air layer (or the wrapper)
+  G4int m_n_trapped_air;     // Number of photons from the quartz lost outside the quartz (not at the MPPCs)
 
   // Per-photon info
   std::vector<G4double> m_gen_wave_length; // Wavelengths of generated Cherenkov photons

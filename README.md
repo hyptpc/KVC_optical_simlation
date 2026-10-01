@@ -166,6 +166,7 @@ Main branches:
 | `n_delta_e`       | Number of delta electrons generated in the quartz |
 | `beam_*`          | Energy, momentum and position of the primary particle |
 | `nhit_mppc`       | Number of photons reaching the MPPCs (detected or not) |
+| `nTrapped_Air`    | Number of photons generated in the quartz that are lost outside the quartz (absorbed or leaving the world), excluding photons reaching the MPPCs |
 | `seg`, `detect_flag`, `wave_length`, `time`, `pos_*` | Information of each photon reaching the MPPCs (`detect_flag`: 1 if detected, 0 otherwise) |
 
 See `src/AnaManager.cc` for the full list of branches.

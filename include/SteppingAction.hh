@@ -5,6 +5,7 @@
 
 #include <G4UserSteppingAction.hh>
 
+class G4LogicalVolume;
 class G4Step;
 class G4VPhysicalVolume;
 
@@ -19,8 +20,8 @@ public:
   void UserSteppingAction(const G4Step* aStep) override;
 
 private:
-  G4VPhysicalVolume* m_air_pv;  // Mother volume (air layer)
-  G4VPhysicalVolume* m_wrap_pv; // Wrapper volume
+  G4VPhysicalVolume* m_kvc_pv;  // Quartz radiator
+  G4LogicalVolume*   m_mppc_lv; // MPPCs
 };
 
 #endif
