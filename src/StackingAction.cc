@@ -101,8 +101,10 @@ StackingAction::ClassifyNewTrack(const G4Track* aTrack)
   }
 
   // --- Delta electrons (secondary electrons from ionization) ---
+  // Count only new tracks: an electron suspended after emitting Cherenkov photons
+  // (SetCerenkovTrackSecondariesFirst) comes back here every time it is resumed.
   if (aTrack->GetDefinition() == G4Electron::ElectronDefinition() &&
-      aTrack->GetParentID() > 0) {
+      aTrack->GetParentID() > 0 && aTrack->GetCurrentStepNumber() == 0) {
     const auto creator = aTrack->GetCreatorProcess();
     if (creator) {
       const G4String& process_name = creator->GetProcessName();
