@@ -159,6 +159,8 @@ Main branches:
 
 | Branch            | Description |
 |-------------------|-------------|
+| `evnum`           | Event number in the output file (continues over several `/run/beamOn`) |
+| `event_id`        | Geant4 event ID (restarts from 0 at each `/run/beamOn`) |
 | `npe`             | Number of detected photoelectrons |
 | `n_cherenkov_gen` | Number of Cherenkov photons generated in the quartz (1.37-3.87 eV) |
 | `n_delta_e`       | Number of delta electrons generated in the quartz |
